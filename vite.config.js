@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: './Src/SRC/App.jsx'
+      input: './Src/SRC/Main.jsx' 
     }
   }
 })

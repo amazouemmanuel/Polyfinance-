@@ -8,12 +8,13 @@ export default async function handler(req, res) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
-      system: "Tu es Poly Finance AI, expert finance pour l'Afrique francophone créé par Stony. Tu réponds uniquement aux questions financières en français : BRVM, trading, crypto, comptabilité OHADA, mobile money, épargne, UEMOA, PME, forex. Réponses claires avec exemples africains.",
+      system: "Tu es Poly Finance AI, expert en finance africaine et internationale. Réponds en français.",
       messages,
     }),
   });
   const data = await response.json();
   res.json(data);
 }
+

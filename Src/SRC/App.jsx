@@ -89,8 +89,10 @@ export default function App() {
   const [chats, setChats] = useState({
     chat: [], script: [], recherche: [], brainstorming: [], revision: []
   });
+  const [chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
+  const bottomRefChat = useRef(null);
 
   const currentMessages = chats[activeAgent] || [];
 
@@ -98,18 +100,39 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chats, loading]);
 
-  const sendMessage = async (text) => {
+  useEffect(() => {
+    bottomRefChat.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, loading]);
+
+  const sendMessage = async (text, isDirectChat = false) => {
     const userMsg = { role: "user", content: text };
+
+    if (isDirectChat) {
+      setChatMessages(prev => [...prev, userMsg]);
+      setLoading(true);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ agentType: "chat", messages: [...chatMessages, userMsg] })
+        });
+        const data = await res.json();
+        const reply = data.content?.[0]?.text || "Erreur de réponse.";
+        setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      } catch {
+        setChatMessages(prev => [...prev, { role: "assistant", content: "Erreur de connexion." }]);
+      }
+      setLoading(false);
+      return;
+    }
+
     setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg] }));
     setLoading(true);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          agentType: activeAgent,
-          messages: [...chats[activeAgent], userMsg]
-        })
+        body: JSON.stringify({ agentType: activeAgent, messages: [...chats[activeAgent], userMsg] })
       });
       const data = await res.json();
       const reply = data.content?.[0]?.text || "Erreur de réponse.";
@@ -136,9 +159,10 @@ export default function App() {
               <div style={{ color: C.tealLight, fontSize: "0.65rem" }}>Finance africaine · 5 agents IA</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setPage("home")} style={{ background: page === "home" ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 10px", color: C.white, fontSize: "0.72rem", cursor: "pointer" }}>Accueil</button>
-            <button onClick={() => setPage("agents")} style={{ background: page === "agents" ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 10px", color: C.white, fontSize: "0.72rem", cursor: "pointer" }}>Agents</button>
+          <div style={{ display: "flex", gap: 5 }}>
+            {[["home","Accueil"],["chat","Chat"],["agents","Agents"]].map(([p,label]) => (
+              <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400 }}>{label}</button>
+            ))}
           </div>
         </div>
       </div>
@@ -153,7 +177,7 @@ export default function App() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
             {S.map((s, i) => (
-              <button key={i} onClick={() => { setActiveAgent("chat"); setPage("agents"); setTimeout(() => sendMessage(s.q), 100); }}
+              <button key={i} onClick={() => { setPage("chat"); setTimeout(() => sendMessage(s.q, true), 100); }}
                 style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", textAlign: "left" }}>
                 <div style={{ fontSize: "1.4rem" }}>{s.icon}</div>
                 <div style={{ color: C.navy, fontWeight: 600, fontSize: "0.78rem", marginTop: 4 }}>{s.label}</div>
@@ -166,10 +190,40 @@ export default function App() {
         </div>
       )}
 
+      {/* PAGE CHAT DIRECT */}
+      {page === "chat" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+            {chatMessages.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>🤖</div>
+                <div style={{ fontWeight: 600, color: C.navy, marginBottom: 6 }}>Poly Finance AI</div>
+                <div style={{ fontSize: "0.8rem" }}>Pose-moi n'importe quelle question financière</div>
+              </div>
+            )}
+            {chatMessages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                <div style={{ maxWidth: "82%", background: m.role === "user" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : C.white, color: m.role === "user" ? C.white : C.text, borderRadius: m.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px", padding: "9px 13px", fontSize: "0.83rem", lineHeight: 1.5, border: m.role === "user" ? "none" : `1px solid ${C.border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                  {m.role === "assistant" ? <F text={m.content} /> : m.content}
+                </div>
+              </div>
+            ))}
+            {loading && page === "chat" && (
+              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}>
+                  <Dots />
+                </div>
+              </div>
+            )}
+            <div ref={bottomRefChat} />
+          </div>
+          <Input onSend={(t) => sendMessage(t, true)} placeholder="Posez votre question financière..." />
+        </div>
+      )}
+
       {/* PAGE AGENTS */}
       {page === "agents" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {/* ONGLETS AGENTS */}
           <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
             <div style={{ display: "flex", padding: "8px 10px", gap: 6, minWidth: "max-content" }}>
               {AGENTS.map(a => (
@@ -181,13 +235,9 @@ export default function App() {
               ))}
             </div>
           </div>
-
-          {/* DESCRIPTION AGENT */}
           <div style={{ background: `linear-gradient(135deg,${C.navy}15,${C.teal}10)`, padding: "8px 14px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
             <div style={{ fontSize: "0.75rem", color: C.navy, fontWeight: 600 }}>{agent?.icon} {agent?.label} — <span style={{ color: C.textMuted, fontWeight: 400 }}>{agent?.desc}</span></div>
           </div>
-
-          {/* MESSAGES */}
           <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
             {currentMessages.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted }}>
@@ -203,7 +253,7 @@ export default function App() {
                 </div>
               </div>
             ))}
-            {loading && (
+            {loading && page === "agents" && (
               <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}>
                   <Dots />
@@ -212,10 +262,13 @@ export default function App() {
             )}
             <div ref={bottomRef} />
           </div>
-
           <Input onSend={sendMessage} placeholder={agent?.placeholder} />
         </div>
       )}
     </div>
   );
 }
+
+
+  
+              

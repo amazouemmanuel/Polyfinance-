@@ -24,6 +24,89 @@ const S = [
   { icon: "🏦", label: "Finance islamique", q: "Explique la finance islamique." }
 ];
 
+const TOOLS = [
+  { id: "composes", label: "Intérêts composés", emoji: "📈" },
+  { id: "epargne", label: "Capacité d'épargne", emoji: "💰" },
+  { id: "brvm", label: "Rendement BRVM", emoji: "📊" },
+  { id: "credit", label: "Coût crédit", emoji: "🏦" },
+  { id: "objectif", label: "Objectif épargne", emoji: "🎯" },
+];
+
+// ─── Formatage ───────────────────────────────────────────────────────────────
+function formater(v) {
+  return new Intl.NumberFormat("fr-FR").format(Math.round(v)) + " FCFA";
+}
+
+// ─── Composants calculateurs ─────────────────────────────────────────────────
+function CalcInput({ label, value, onChange, placeholder }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>
+      <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+    </div>
+  );
+}
+
+function CalcBtn({ onClick }) {
+  return (
+    <button onClick={onClick} style={{ width: "100%", padding: 13, marginBottom: 16, background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 11, color: C.white, fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}>
+      Calculer
+    </button>
+  );
+}
+
+function CalcResultat({ principal, label, children, alerte }) {
+  return (
+    <div style={{ background: `linear-gradient(135deg,${C.navy}10,${C.teal}08)`, border: `1px solid ${C.teal}40`, borderRadius: 13, padding: 18, textAlign: "center" }}>
+      {alerte && <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "7px 11px", color: "#92400e", fontSize: "0.75rem", marginBottom: 10 }}>{alerte}</div>}
+      <p style={{ color: C.textMuted, fontSize: "0.65rem", letterSpacing: 1, margin: "0 0 3px", textTransform: "uppercase" }}>{label}</p>
+      <p style={{ color: C.teal, fontSize: "1.7rem", fontWeight: 800, margin: "0 0 14px" }}>{principal}</p>
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>{children}</div>
+    </div>
+  );
+}
+
+function CalcLigne({ titre, valeur, vert, rouge }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ color: C.textMuted, fontSize: "0.75rem" }}>{titre}</span>
+      <span style={{ color: rouge ? "#ef4444" : vert ? "#10b981" : C.text, fontWeight: 700, fontSize: "0.85rem" }}>{valeur}</span>
+    </div>
+  );
+}
+
+function Composes() {
+  const [capital, setCapital] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
+  function calculer() { const C2 = parseFloat(capital), r = parseFloat(taux) / 100, n = parseInt(duree); if (!C2 || !r || !n) return; const final = C2 * Math.pow(1 + r, n); setRes({ final, interets: final - C2 }); }
+  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien vaut ton argent après N ans avec des intérêts qui s'accumulent ?</p><CalcInput label="Capital initial (FCFA)" value={capital} onChange={setCapital} placeholder="ex: 500 000" /><CalcInput label="Taux annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 8" /><CalcInput label="Durée (années)" value={duree} onChange={setDuree} placeholder="ex: 10" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.final)} label="Montant final"><CalcLigne titre="Capital de départ" valeur={formater(parseFloat(capital))} /><CalcLigne titre="Intérêts gagnés" valeur={formater(res.interets)} vert /></CalcResultat>)}</div>);
+}
+
+function Epargne() {
+  const [revenus, setRevenus] = useState(""); const [depenses, setDepenses] = useState(""); const [res, setRes] = useState(null);
+  function calculer() { const R = parseFloat(revenus), D = parseFloat(depenses); if (!R || !D) return; const capacite = R - D; setRes({ capacite, taux: (capacite / R) * 100 }); }
+  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien peux-tu mettre de côté chaque mois ?</p><CalcInput label="Revenus mensuels (FCFA)" value={revenus} onChange={setRevenus} placeholder="ex: 150 000" /><CalcInput label="Dépenses mensuelles (FCFA)" value={depenses} onChange={setDepenses} placeholder="ex: 100 000" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(Math.max(0, res.capacite))} label="Épargne possible / mois" alerte={res.capacite <= 0 ? "⚠️ Dépenses supérieures aux revenus" : null}><CalcLigne titre="Taux d'épargne" valeur={res.taux.toFixed(1) + "%"} vert={res.taux >= 20} /><CalcLigne titre="Taux conseillé" valeur="≥ 20%" /></CalcResultat>)}</div>);
+}
+
+function BRVM() {
+  const [pa, setPa] = useState(""); const [pv, setPv] = useState(""); const [div, setDiv] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
+  function calculer() { const PA = parseFloat(pa), PV = parseFloat(pv), D = parseFloat(div) || 0, N = parseInt(duree) || 1; if (!PA || !PV) return; const pv2 = PV - PA; const gain = pv2 + D; const rend = (gain / PA) * 100; setRes({ pv2, gain, rend, rendAnnuel: rend / N }); }
+  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Calcule ton rendement réel sur une action BRVM.</p><CalcInput label="Prix d'achat / action (FCFA)" value={pa} onChange={setPa} placeholder="ex: 12 500" /><CalcInput label="Prix de vente / action (FCFA)" value={pv} onChange={setPv} placeholder="ex: 15 000" /><CalcInput label="Dividendes reçus / action (FCFA)" value={div} onChange={setDiv} placeholder="ex: 500 (optionnel)" /><CalcInput label="Durée de détention (années)" value={duree} onChange={setDuree} placeholder="ex: 2" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={res.rend.toFixed(2) + "%"} label="Rendement total"><CalcLigne titre="Plus-value" valeur={formater(res.pv2)} vert={res.pv2 > 0} /><CalcLigne titre="Gain total" valeur={formater(res.gain)} vert /><CalcLigne titre="Rendement annuel" valeur={res.rendAnnuel.toFixed(2) + "%"} /></CalcResultat>)}</div>);
+}
+
+function Credit() {
+  const [montant, setMontant] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
+  function calculer() { const P = parseFloat(montant), r = parseFloat(taux) / 100 / 12, n = parseInt(duree); if (!P || !r || !n) return; const m = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1); const total = m * n; setRes({ m, total, cout: total - P }); }
+  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien ce crédit te coûte vraiment au total ?</p><CalcInput label="Montant emprunté (FCFA)" value={montant} onChange={setMontant} placeholder="ex: 1 000 000" /><CalcInput label="Taux annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 12" /><CalcInput label="Durée (mois)" value={duree} onChange={setDuree} placeholder="ex: 24" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.m)} label="Mensualité"><CalcLigne titre="Total remboursé" valeur={formater(res.total)} /><CalcLigne titre="Coût des intérêts" valeur={formater(res.cout)} rouge /></CalcResultat>)}</div>);
+}
+
+function Objectif() {
+  const [cible, setCible] = useState(""); const [actuel, setActuel] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
+  function calculer() { const FV = parseFloat(cible), PV = parseFloat(actuel) || 0, r = parseFloat(taux) / 100 / 12, n = parseInt(duree); if (!FV || !n) return; const fvActuel = PV * Math.pow(1 + r, n); const reste = FV - fvActuel; const m = r > 0 ? (reste * r) / (Math.pow(1 + r, n) - 1) : reste / n; setRes({ m: Math.max(0, m), fvActuel }); }
+  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien épargner chaque mois pour atteindre ton objectif ?</p><CalcInput label="Objectif à atteindre (FCFA)" value={cible} onChange={setCible} placeholder="ex: 5 000 000" /><CalcInput label="Épargne déjà disponible (FCFA)" value={actuel} onChange={setActuel} placeholder="ex: 200 000 (optionnel)" /><CalcInput label="Taux de placement annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 5" /><CalcInput label="Délai (mois)" value={duree} onChange={setDuree} placeholder="ex: 36" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.m)} label="À épargner / mois"><CalcLigne titre="Valeur future de ton épargne actuelle" valeur={formater(res.fvActuel)} vert /></CalcResultat>)}</div>);
+}
+
+// ─── Autres composants ───────────────────────────────────────────────────────
 function F({ text }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -83,12 +166,12 @@ function Input({ onSend, placeholder }) {
   );
 }
 
+// ─── App principale ───────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("home");
   const [activeAgent, setActiveAgent] = useState("chat");
-  const [chats, setChats] = useState({
-    chat: [], script: [], recherche: [], brainstorming: [], revision: []
-  });
+  const [activeTool, setActiveTool] = useState("composes");
+  const [chats, setChats] = useState({ chat: [], script: [], recherche: [], brainstorming: [], revision: [] });
   const [chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -96,54 +179,35 @@ export default function App() {
 
   const currentMessages = chats[activeAgent] || [];
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chats, loading]);
-
-  useEffect(() => {
-    bottomRefChat.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, loading]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chats, loading]);
+  useEffect(() => { bottomRefChat.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, loading]);
 
   const sendMessage = async (text, isDirectChat = false) => {
     const userMsg = { role: "user", content: text };
-
     if (isDirectChat) {
       setChatMessages(prev => [...prev, userMsg]);
       setLoading(true);
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ agentType: "chat", messages: [...chatMessages, userMsg] })
-        });
+        const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agentType: "chat", messages: [...chatMessages, userMsg] }) });
         const data = await res.json();
-        const reply = data.content?.[0]?.text || "Erreur de réponse.";
-        setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
-      } catch {
-        setChatMessages(prev => [...prev, { role: "assistant", content: "Erreur de connexion." }]);
-      }
+        setChatMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Erreur de réponse." }]);
+      } catch { setChatMessages(prev => [...prev, { role: "assistant", content: "Erreur de connexion." }]); }
       setLoading(false);
       return;
     }
-
     setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg] }));
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agentType: activeAgent, messages: [...chats[activeAgent], userMsg] })
-      });
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agentType: activeAgent, messages: [...chats[activeAgent], userMsg] }) });
       const data = await res.json();
-      const reply = data.content?.[0]?.text || "Erreur de réponse.";
-      setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: reply }] }));
-    } catch {
-      setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: "Erreur de connexion." }] }));
-    }
+      setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: data.content?.[0]?.text || "Erreur de réponse." }] }));
+    } catch { setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: "Erreur de connexion." }] })); }
     setLoading(false);
   };
 
   const agent = AGENTS.find(a => a.id === activeAgent);
+  const toolComposants = { composes: Composes, epargne: Epargne, brvm: BRVM, credit: Credit, objectif: Objectif };
+  const ActiveTool = toolComposants[activeTool];
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" }}>
@@ -160,7 +224,7 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 5 }}>
-            {[["home","Accueil"],["chat","Chat"],["agents","Agents"]].map(([p,label]) => (
+            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"]].map(([p,label]) => (
               <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400 }}>{label}</button>
             ))}
           </div>
@@ -175,7 +239,7 @@ export default function App() {
             <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.3rem", marginTop: 10 }}>Poly Finance AI</div>
             <div style={{ color: C.textMuted, fontSize: "0.8rem", marginTop: 4 }}>Premier assistant financier IA pour l'Afrique francophone</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             {S.map((s, i) => (
               <button key={i} onClick={() => { setPage("chat"); setTimeout(() => sendMessage(s.q, true), 100); }}
                 style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", textAlign: "left" }}>
@@ -184,13 +248,16 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "13px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.9rem", cursor: "pointer" }}>
+          <button onClick={() => setPage("outils")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.orange},#f59e0b)`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
+            🧮 Outils Financiers
+          </button>
+          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
             🤖 Accéder aux 5 Agents IA
           </button>
         </div>
       )}
 
-      {/* PAGE CHAT DIRECT */}
+      {/* PAGE CHAT */}
       {page === "chat" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
@@ -210,9 +277,7 @@ export default function App() {
             ))}
             {loading && page === "chat" && (
               <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}>
-                  <Dots />
-                </div>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}><Dots /></div>
               </div>
             )}
             <div ref={bottomRefChat} />
@@ -255,9 +320,7 @@ export default function App() {
             ))}
             {loading && page === "agents" && (
               <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}>
-                  <Dots />
-                </div>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}><Dots /></div>
               </div>
             )}
             <div ref={bottomRef} />
@@ -265,10 +328,28 @@ export default function App() {
           <Input onSend={sendMessage} placeholder={agent?.placeholder} />
         </div>
       )}
+
+      {/* PAGE OUTILS */}
+      {page === "outils" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* Onglets outils */}
+          <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
+            <div style={{ display: "flex", padding: "8px 10px", gap: 6, minWidth: "max-content" }}>
+              {TOOLS.map(t => (
+                <button key={t.id} onClick={() => setActiveTool(t.id)}
+                  style={{ background: activeTool === t.id ? `linear-gradient(135deg,${C.orange},#f59e0b)` : C.bg, border: `1px solid ${activeTool === t.id ? C.orange : C.border}`, borderRadius: 10, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                  <span style={{ fontSize: "0.9rem" }}>{t.emoji}</span>
+                  <span style={{ color: activeTool === t.id ? C.white : C.text, fontWeight: 600, fontSize: "0.75rem" }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Contenu calculateur */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+            <ActiveTool />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-  
-              

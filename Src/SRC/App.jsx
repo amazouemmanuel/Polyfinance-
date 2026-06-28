@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import Fondateur from "./Fondateur";
 
 const C = {
   navy: "#1B4D6E", navyDark: "#0F2E42", navyLight: "#245f85",
@@ -32,12 +33,10 @@ const TOOLS = [
   { id: "objectif", label: "Objectif épargne", emoji: "🎯" },
 ];
 
-// ─── Formatage ───────────────────────────────────────────────────────────────
 function formater(v) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(v)) + " FCFA";
 }
 
-// ─── Composants calculateurs ─────────────────────────────────────────────────
 function CalcInput({ label, value, onChange, placeholder }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -106,7 +105,6 @@ function Objectif() {
   return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien épargner chaque mois pour atteindre ton objectif ?</p><CalcInput label="Objectif à atteindre (FCFA)" value={cible} onChange={setCible} placeholder="ex: 5 000 000" /><CalcInput label="Épargne déjà disponible (FCFA)" value={actuel} onChange={setActuel} placeholder="ex: 200 000 (optionnel)" /><CalcInput label="Taux de placement annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 5" /><CalcInput label="Délai (mois)" value={duree} onChange={setDuree} placeholder="ex: 36" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.m)} label="À épargner / mois"><CalcLigne titre="Valeur future de ton épargne actuelle" valeur={formater(res.fvActuel)} vert /></CalcResultat>)}</div>);
 }
 
-// ─── Autres composants ───────────────────────────────────────────────────────
 function F({ text }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -166,7 +164,6 @@ function Input({ onSend, placeholder }) {
   );
 }
 
-// ─── App principale ───────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("home");
   const [activeAgent, setActiveAgent] = useState("chat");
@@ -223,9 +220,9 @@ export default function App() {
               <div style={{ color: C.tealLight, fontSize: "0.65rem" }}>Finance africaine · 5 agents IA</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 5 }}>
-            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"]].map(([p,label]) => (
-              <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400 }}>{label}</button>
+          <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
+            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["fondateur","Fondateur"]].map(([p,label]) => (
+              <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400, flexShrink: 0 }}>{label}</button>
             ))}
           </div>
         </div>
@@ -332,7 +329,6 @@ export default function App() {
       {/* PAGE OUTILS */}
       {page === "outils" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {/* Onglets outils */}
           <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
             <div style={{ display: "flex", padding: "8px 10px", gap: 6, minWidth: "max-content" }}>
               {TOOLS.map(t => (
@@ -344,12 +340,23 @@ export default function App() {
               ))}
             </div>
           </div>
-          {/* Contenu calculateur */}
           <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
             <ActiveTool />
           </div>
         </div>
       )}
+
+      {/* PAGE FONDATEUR */}
+      {page === "fondateur" && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <Fondateur />
+        </div>
+      )}
+
     </div>
   );
 }
+
+      
+
+

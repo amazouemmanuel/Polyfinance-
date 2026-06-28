@@ -1,0 +1,14 @@
+{
+  "name": "Poly Finance AI",
+  "short_name": "PolyFinance",
+  "description": "La plateforme d'éducation financière pour l'Afrique francophone",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme-color": "#0a2d4d"
+}

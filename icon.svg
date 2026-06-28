@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <rect x="60" y="280" width="70" height="140" fill="#1a3a5c"/>
+  <rect x="150" y="220" width="70" height="200" fill="#4a9ab5"/>
+  <rect x="240" y="160" width="70" height="260" fill="#4a9ab5"/>
+  <rect x="330" y="100" width="70" height="320" fill="#f07830"/>
+  <path d="M80 300 Q256 80 420 60" stroke="#1a3a5c" stroke-width="18" fill="none" stroke-linecap="round"/>
+  <polygon points="420,40 440,90 395,75" fill="#1a3a5c"/>
+  <text x="256" y="470" font-family="Arial Black" font-weight="900" font-size="72" fill="#1a3a5c" text-anchor="middle">POLY FINANCE</text>
+</svg>

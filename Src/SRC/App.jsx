@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Fondateur from "./Fondateur";
+import PolyFinanceGF from "./PolyFinanceGF";
 
 const C = {
   navy: "#1B4D6E", navyDark: "#0F2E42", navyLight: "#245f85",
@@ -221,7 +222,7 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
-            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["fondateur","Fondateur"]].map(([p,label]) => (
+            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["gf","Entreprise"],["fondateur","Fondateur"]].map(([p,label]) => (
               <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400, flexShrink: 0 }}>{label}</button>
             ))}
           </div>
@@ -248,8 +249,11 @@ export default function App() {
           <button onClick={() => setPage("outils")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.orange},#f59e0b)`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
             🧮 Outils Financiers
           </button>
-          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
+          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
             🤖 Accéder aux 5 Agents IA
+          </button>
+          <button onClick={() => setPage("gf")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.navy},${C.navyLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
+            🏢 Espace Entreprise (GF)
           </button>
         </div>
       )}
@@ -346,6 +350,13 @@ export default function App() {
         </div>
       )}
 
+      {/* PAGE GF */}
+      {page === "gf" && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <PolyFinanceGF />
+        </div>
+      )}
+
       {/* PAGE FONDATEUR */}
       {page === "fondateur" && (
         <div style={{ flex: 1, overflowY: "auto" }}>
@@ -356,7 +367,3 @@ export default function App() {
     </div>
   );
 }
-
-      
-
-

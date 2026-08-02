@@ -165,8 +165,39 @@ function Input({ onSend, placeholder }) {
   );
 }
 
+// ============================================================
+// ÉCRAN D'ACCUEIL — choix entre PolyFinance AI et PolyFinance GF
+// ============================================================
+function Landing({ onChoisirIA, onChoisirGF }) {
+  return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.navyDark},${C.navy} 60%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <Logo s={64} />
+      <div style={{ color: C.white, fontWeight: 800, fontSize: "1.5rem", marginTop: 14 }}>PolyFinance</div>
+      <div style={{ color: C.tealLight, fontSize: "0.85rem", marginTop: 4, marginBottom: 36, textAlign: "center" }}>
+        Choisissez votre espace
+      </div>
+
+      <button onClick={onChoisirIA} style={{ width: "100%", maxWidth: 360, textAlign: "left", background: C.white, border: "none", borderRadius: 16, padding: 20, marginBottom: 16, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.15)" }}>
+        <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>🤖</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.05rem" }}>PolyFinance AI</div>
+        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>
+          Éducation financière, assistant IA, outils — pour étudiants et particuliers
+        </div>
+      </button>
+
+      <button onClick={onChoisirGF} style={{ width: "100%", maxWidth: 360, textAlign: "left", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 16, padding: 20, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.15)" }}>
+        <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>🏢</div>
+        <div style={{ color: C.white, fontWeight: 800, fontSize: "1.05rem" }}>PolyFinance GF</div>
+        <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.78rem", marginTop: 4 }}>
+          Gestion clients, paiements, créances — pour entreprises et PME
+        </div>
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState("landing");
   const [activeAgent, setActiveAgent] = useState("chat");
   const [activeTool, setActiveTool] = useState("composes");
   const [chats, setChats] = useState({ chat: [], script: [], recherche: [], brainstorming: [], revision: [] });
@@ -207,29 +238,36 @@ export default function App() {
   const toolComposants = { composes: Composes, epargne: Epargne, brvm: BRVM, credit: Credit, objectif: Objectif };
   const ActiveTool = toolComposants[activeTool];
 
+  // ÉCRAN D'ACCUEIL — avant tout choix
+  if (page === "landing") {
+    return <Landing onChoisirIA={() => setPage("home")} onChoisirGF={() => setPage("gf")} />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" }}>
       <style>{`@keyframes db{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box}body{margin:0}`}</style>
 
-      {/* HEADER */}
-      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px 10px", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <Logo s={30} />
-            <div>
-              <div style={{ color: C.white, fontWeight: 700, fontSize: "1rem" }}>Poly Finance AI</div>
-              <div style={{ color: C.tealLight, fontSize: "0.65rem" }}>Finance africaine · 5 agents IA</div>
+      {/* HEADER — masqué pour l'espace GF, qui a son propre en-tête */}
+      {page !== "gf" && (
+        <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px 10px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div onClick={() => setPage("landing")} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+              <Logo s={30} />
+              <div>
+                <div style={{ color: C.white, fontWeight: 700, fontSize: "1rem" }}>Poly Finance AI</div>
+                <div style={{ color: C.tealLight, fontSize: "0.65rem" }}>Finance africaine · 5 agents IA</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
+              {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["fondateur","Fondateur"]].map(([p,label]) => (
+                <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400, flexShrink: 0 }}>{label}</button>
+              ))}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
-            {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["gf","Entreprise"],["fondateur","Fondateur"]].map(([p,label]) => (
-              <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400, flexShrink: 0 }}>{label}</button>
-            ))}
-          </div>
         </div>
-      </div>
+      )}
 
-      {/* PAGE ACCUEIL */}
+      {/* PAGE ACCUEIL (IA) */}
       {page === "home" && (
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
           <div style={{ textAlign: "center", padding: "24px 0 20px" }}>
@@ -249,11 +287,8 @@ export default function App() {
           <button onClick={() => setPage("outils")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.orange},#f59e0b)`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
             🧮 Outils Financiers
           </button>
-          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
+          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
             🤖 Accéder aux 5 Agents IA
-          </button>
-          <button onClick={() => setPage("gf")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.navy},${C.navyLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
-            🏢 Espace Entreprise (GF)
           </button>
         </div>
       )}
@@ -353,6 +388,9 @@ export default function App() {
       {/* PAGE GF */}
       {page === "gf" && (
         <div style={{ flex: 1, overflowY: "auto" }}>
+          <div onClick={() => setPage("landing")} style={{ background: C.navyDark, color: "rgba(255,255,255,0.6)", fontSize: "0.72rem", padding: "8px 16px", cursor: "pointer" }}>
+            ← Retour à l'accueil PolyFinance
+          </div>
           <PolyFinanceGF />
         </div>
       )}

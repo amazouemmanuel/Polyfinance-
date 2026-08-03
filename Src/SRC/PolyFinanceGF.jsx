@@ -9,6 +9,8 @@ const C = {
   red: "#ef4444", green: "#10b981", amber: "#f59e0b"
 };
 
+const ADMIN_EMAIL = "amazouemmanuel274@gmail.com";
+
 const PLANS = [
   { id: "gratuit", nom: "Gratuit", prix: "0 F", periode: "2 jours d'essai", jours: 2 },
   { id: "premium", nom: "Premium", prix: "8 000 F", periode: "/ 30 jours", jours: 30 },
@@ -205,7 +207,68 @@ function EnAttente({ onGoLogin }) {
 }
 
 // ============================================================
-// APPLICATION PRINCIPALE (une fois connecté)
+// ESPACE ADMINISTRATEUR
+// ============================================================
+function AdminDashboard({ onLogout }) {
+  const [entreprises, setEntreprises] = useState([]);
+  const [chargement, setChargement] = useState(true);
+
+  const recharger = async () => {
+    setChargement(true);
+    const { data } = await supabase.from("entreprises").select("*").order("created_at", { ascending: false });
+    setEntreprises(data || []);
+    setChargement(false);
+  };
+
+  useEffect(() => { recharger(); }, []);
+
+  const activerPremium = async (id) => {
+    const nouvelleDate = ajouterJours(new Date().toISOString().slice(0, 10), 30);
+    await supabase.from("entreprises").update({ statut: "Premium", plan: "premium", date_expiration: nouvelleDate }).eq("id", id);
+    recharger();
+  };
+
+  const couleurStatut = (statut) => statut === "Premium" ? "vert" : statut === "En attente" ? "ambre" : "gris";
+
+  return (
+    <div>
+      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>Espace Administrateur</div>
+          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>PolyFinance GF</div>
+        </div>
+        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+      </div>
+      <div style={{ padding: 16 }}>
+        {chargement && <div style={{ color: C.textMuted, textAlign: "center", padding: 20 }}>Chargement...</div>}
+        {!chargement && entreprises.length === 0 && (
+          <div style={{ color: C.textMuted, textAlign: "center", padding: 20 }}>Aucune entreprise inscrite pour l'instant.</div>
+        )}
+        {entreprises.map(e => (
+          <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.text }}>{e.nom}</div>
+                <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{e.responsable} · {e.telephone}</div>
+              </div>
+              <Badge text={e.statut} color={couleurStatut(e.statut)} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0 }}>
+              <span>Plan : {e.plan}</span>
+              <span>{e.date_expiration ? `Expire le ${e.date_expiration}` : "Pas d'expiration"}</span>
+            </div>
+            {e.statut === "En attente" && (
+              <Btn onClick={() => activerPremium(e.id)}>✅ Activer Premium</Btn>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// APPLICATION PRINCIPALE (une fois connecté — côté entreprise)
 // ============================================================
 function TableauDeBord({ entreprise, clients, paiements }) {
   const encaisse = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
@@ -381,6 +444,12 @@ export default function PolyFinanceGF() {
   const chargerEntreprise = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setEcran("login"); return; }
+
+    if (user.email === ADMIN_EMAIL) {
+      setEcran("admin");
+      return;
+    }
+
     const { data } = await supabase.from("entreprises").select("*").eq("auth_user_id", user.id).single();
     if (data) { setEntreprise(data); setEcran("app"); }
     else { setEcran("login"); }
@@ -398,6 +467,7 @@ export default function PolyFinanceGF() {
   if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />;
   if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
   if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
+  if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }

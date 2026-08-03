@@ -1,6 +1,7 @@
- import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Fondateur from "./Fondateur";
 import PolyFinanceGF from "./PolyFinanceGF";
+import { supabase } from "./lib/supabaseClient";
 
 const C = {
   navy: "#1B4D6E", navyDark: "#0F2E42", navyLight: "#245f85",
@@ -198,6 +199,7 @@ function Landing({ onChoisirIA, onChoisirGF }) {
 
 export default function App() {
   const [page, setPage] = useState("landing");
+  const [verifieSession, setVerifieSession] = useState(false);
   const [activeAgent, setActiveAgent] = useState("chat");
   const [activeTool, setActiveTool] = useState("composes");
   const [chats, setChats] = useState({ chat: [], script: [], recherche: [], brainstorming: [], revision: [] });
@@ -207,6 +209,16 @@ export default function App() {
   const bottomRefChat = useRef(null);
 
   const currentMessages = chats[activeAgent] || [];
+
+  // Vérifie une seule fois, au chargement de l'app, si une session existe déjà
+  // (par ex. juste après avoir cliqué sur le lien de confirmation d'email).
+  // Si oui, on saute l'écran de choix et on va directement dans l'espace GF.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setPage("gf");
+      setVerifieSession(true);
+    });
+  }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chats, loading]);
   useEffect(() => { bottomRefChat.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, loading]);
@@ -237,6 +249,11 @@ export default function App() {
   const agent = AGENTS.find(a => a.id === activeAgent);
   const toolComposants = { composes: Composes, epargne: Epargne, brvm: BRVM, credit: Credit, objectif: Objectif };
   const ActiveTool = toolComposants[activeTool];
+
+  // Écran neutre pendant la vérification de session (évite un clignotement)
+  if (!verifieSession) {
+    return <div style={{ minHeight: "100vh", background: C.navyDark }} />;
+  }
 
   // ÉCRAN D'ACCUEIL — avant tout choix
   if (page === "landing") {
@@ -406,5 +423,4 @@ export default function App() {
   );
 }
 
-  
-    
+            

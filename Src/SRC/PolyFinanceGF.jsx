@@ -26,6 +26,30 @@ function ajouterJours(dateStr, jours) {
   return d.toISOString().slice(0, 10);
 }
 
+function ajouterMois(dateStr, mois) {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + mois);
+  return d.toISOString().slice(0, 10);
+}
+
+function genererEcheances(creanceId, montantTotal, nombreEcheances, dateDebut) {
+  const base = Math.floor(montantTotal / nombreEcheances);
+  const reste = montantTotal - base * nombreEcheances;
+  return Array.from({ length: nombreEcheances }, (_, i) => ({
+    creance_id: creanceId,
+    numero: i + 1,
+    date_echeance: ajouterMois(dateDebut, i),
+    montant: base + (i === nombreEcheances - 1 ? reste : 0),
+    paye: false,
+  }));
+}
+
+function statutEcheance(e) {
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  if (e.paye) return "Payée";
+  return e.date_echeance < aujourdHui ? "En retard" : "À venir";
+}
+
 function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -194,7 +218,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 }
 
 // ============================================================
-// ÉCRAN : Attente de vérification (juste après inscription, pas encore confirmé)
+// ÉCRAN : Attente de vérification (juste après inscription)
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
@@ -214,7 +238,6 @@ function EnAttente({ onGoLogin }) {
 
 // ============================================================
 // ÉCRAN : Connecté mais en attente d'activation Premium
-// (empêche l'accès à l'app tant que le paiement n'est pas vérifié)
 // ============================================================
 function EnAttenteConnecte({ entreprise, onLogout }) {
   return (
@@ -295,14 +318,19 @@ function AdminDashboard({ onLogout }) {
 }
 
 // ============================================================
-// APPLICATION PRINCIPALE (une fois connecté — côté entreprise)
+// APPLICATION PRINCIPALE — côté entreprise
 // ============================================================
-function TableauDeBord({ entreprise, clients, paiements }) {
+function TableauDeBord({ clients, paiements, creances }) {
   const encaisse = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
-  const enAttente = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
+  const enAttentePaiements = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
+  const enAttenteCreances = creances.reduce((s, cr) => s + (cr.echeances || []).filter(e => !e.paye).reduce((s2, e) => s2 + Number(e.montant), 0), 0);
+  const enAttente = enAttentePaiements + enAttenteCreances;
   const aujourdHui = new Date().toISOString().slice(0, 10);
   const encaisseAujourdhui = paiements.filter(p => p.statut === "Payé" && p.date === aujourdHui).reduce((s, p) => s + Number(p.montant), 0);
-  const enRetard = clients.filter(c => paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui)).length;
+  const enRetard = clients.filter(c =>
+    paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui) ||
+    creances.some(cr => cr.client_id === c.id && (cr.echeances || []).some(e => statutEcheance(e) === "En retard"))
+  ).length;
 
   return (
     <div>
@@ -421,16 +449,146 @@ function PaiementsView({ entreprise, clients, paiements, recharger }) {
   );
 }
 
+// ============================================================
+// CRÉANCES ÉCHELONNÉES
+// ============================================================
+function CreancesView({ entreprise, clients, creances, recharger }) {
+  const [formOuvert, setFormOuvert] = useState(false);
+  const [creanceOuverte, setCreanceOuverte] = useState(null);
+  const [clientId, setClientId] = useState("");
+  const [montantTotal, setMontantTotal] = useState("");
+  const [nombreEcheances, setNombreEcheances] = useState(3);
+  const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10));
+  const [erreur, setErreur] = useState("");
+  const [chargement, setChargement] = useState(false);
+
+  const creerCreance = async () => {
+    setErreur("");
+    if (!clientId || !montantTotal || !nombreEcheances) { setErreur("Remplis tous les champs."); return; }
+    setChargement(true);
+
+    const { data: creance, error: err1 } = await supabase
+      .from("creances")
+      .insert({ entreprise_id: entreprise.id, client_id: clientId, montant_total: Number(montantTotal), nombre_echeances: Number(nombreEcheances) })
+      .select()
+      .single();
+
+    if (err1) { setChargement(false); setErreur("Erreur : " + err1.message); return; }
+
+    const echeances = genererEcheances(creance.id, Number(montantTotal), Number(nombreEcheances), dateDebut);
+    const { error: err2 } = await supabase.from("echeances").insert(echeances);
+
+    setChargement(false);
+    if (err2) { setErreur("Créance créée mais erreur échéances : " + err2.message); return; }
+
+    setMontantTotal(""); setClientId(""); setFormOuvert(false);
+    recharger();
+  };
+
+  const toggleEcheancePayee = async (echeanceId, payeActuel) => {
+    await supabase.from("echeances").update({ paye: !payeActuel }).eq("id", echeanceId);
+    recharger();
+    if (creanceOuverte) {
+      const misAJour = creances.find(c => c.id === creanceOuverte.id);
+      if (misAJour) setCreanceOuverte(misAJour);
+    }
+  };
+
+  if (creanceOuverte) {
+    const cr = creances.find(c => c.id === creanceOuverte.id) || creanceOuverte;
+    const client = clients.find(c => c.id === cr.client_id);
+    const echeances = (cr.echeances || []).slice().sort((a, b) => a.numero - b.numero);
+    const paye = echeances.filter(e => e.paye).reduce((s, e) => s + Number(e.montant), 0);
+    const reste = cr.montant_total - paye;
+
+    return (
+      <div>
+        <div onClick={() => setCreanceOuverte(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux créances</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem", marginBottom: 4 }}>{client?.nom || "Client supprimé"}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+            <div><div style={{ color: C.textMuted, fontSize: "0.68rem" }}>ENCAISSÉ</div><div style={{ color: C.green, fontWeight: 800 }}>{fmt(paye)}</div></div>
+            <div><div style={{ color: C.textMuted, fontSize: "0.68rem" }}>RESTE DÛ</div><div style={{ color: C.red, fontWeight: 800 }}>{fmt(reste)}</div></div>
+          </div>
+        </div>
+        {echeances.map(e => (
+          <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Échéance {e.numero} · {fmt(e.montant)}</div>
+              <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{e.date_echeance}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Badge text={statutEcheance(e)} color={e.paye ? "vert" : statutEcheance(e) === "En retard" ? "rouge" : "gris"} />
+              <span onClick={() => toggleEcheancePayee(e.id, e.paye)} style={{ color: C.teal, fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {e.paye ? "Annuler" : "Marquer payée"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {!formOuvert && (
+        <Btn onClick={() => setFormOuvert(true)}>+ Nouvelle créance échelonnée</Btn>
+      )}
+      {formOuvert && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Nouvelle créance échelonnée</div>
+          <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+            <option value="">— Choisir un client —</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+          <Input type="number" placeholder="Montant total (FCFA)" value={montantTotal} onChange={e => setMontantTotal(e.target.value)} />
+          <Input type="number" label="Nombre d'échéances" value={nombreEcheances} onChange={e => setNombreEcheances(e.target.value)} />
+          <Input type="date" label="1ère échéance" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+          {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreur}</div>}
+          <Btn onClick={creerCreance} disabled={chargement}>{chargement ? "Création..." : "Créer l'échéancier"}</Btn>
+          <div onClick={() => setFormOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: "0.78rem", color: C.textMuted, cursor: "pointer" }}>Annuler</div>
+        </div>
+      )}
+      {creances.length === 0 && !formOuvert && (
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>Aucune créance échelonnée pour l'instant.</div>
+      )}
+      {creances.map(cr => {
+        const client = clients.find(c => c.id === cr.client_id);
+        const echeances = cr.echeances || [];
+        const payees = echeances.filter(e => e.paye).length;
+        const enRetard = echeances.some(e => statutEcheance(e) === "En retard");
+        const statutGlobal = payees === cr.nombre_echeances ? "Payée" : enRetard ? "En retard" : "À venir";
+        return (
+          <div key={cr.id} onClick={() => setCreanceOuverte(cr)}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.88rem", color: C.text }}>{client?.nom || "Client supprimé"}</div>
+                <div style={{ color: C.textMuted, fontSize: "0.75rem", marginTop: 2 }}>{payees} / {cr.nombre_echeances} échéances payées</div>
+              </div>
+              <Badge text={statutGlobal} color={statutGlobal === "Payée" ? "vert" : statutGlobal === "En retard" ? "rouge" : "gris"} />
+            </div>
+            <div style={{ fontWeight: 800, color: C.teal, marginTop: 8 }}>{fmt(cr.montant_total)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
   const [clients, setClients] = useState([]);
   const [paiements, setPaiements] = useState([]);
+  const [creances, setCreances] = useState([]);
 
   const recharger = async () => {
-    const { data: c } = await supabase.from("clients").select("*").order("created_at", { ascending: false });
-    const { data: p } = await supabase.from("paiements").select("*").order("date", { ascending: false });
+    const { data: c } = await supabase.from("clients").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
+    const { data: p } = await supabase.from("paiements").select("*").eq("entreprise_id", entreprise.id).order("date", { ascending: false });
+    const { data: cr } = await supabase.from("creances").select("*, echeances(*)").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
     setClients(c || []);
     setPaiements(p || []);
+    setCreances(cr || []);
   };
 
   useEffect(() => { recharger(); }, []);
@@ -444,18 +602,19 @@ function EspaceEntreprise({ entreprise, onLogout }) {
         </div>
         <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
       </div>
-      <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}` }}>
-        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"]].map(([id, label]) => (
+      <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
+        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"]].map(([id, label]) => (
           <div key={id} onClick={() => setTab(id)}
-            style={{ flex: 1, textAlign: "center", padding: "10px 4px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer" }}>
+            style={{ flex: 1, textAlign: "center", padding: "10px 4px", fontSize: "0.7rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
             {label}
           </div>
         ))}
       </div>
       <div style={{ padding: 16 }}>
-        {tab === "dashboard" && <TableauDeBord entreprise={entreprise} clients={clients} paiements={paiements} />}
+        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} />}
         {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} recharger={recharger} />}
         {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
+        {tab === "creances" && <CreancesView entreprise={entreprise} clients={clients} creances={creances} recharger={recharger} />}
       </div>
     </div>
   );
@@ -481,8 +640,6 @@ export default function PolyFinanceGF() {
     if (!data) { setEcran("login"); return; }
 
     setEntreprise(data);
-    // Verrou de sécurité : tant que le statut n'est pas "Gratuit" ou "Premium" actif,
-    // pas d'accès à l'application — même si la personne est bien connectée.
     if (data.statut === "En attente") {
       setEcran("attente-connecte");
     } else {
@@ -507,5 +664,4 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
-
 

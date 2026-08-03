@@ -66,7 +66,7 @@ function Connexion({ onGoSignup, onLoggedIn }) {
     setChargement(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
     setChargement(false);
-    if (error) { setErreur("Email ou mot de passe incorrect."); return; }
+    if (error) { setErreur("Email ou mot de passe incorrect, ou email non confirmé."); return; }
     onLoggedIn();
   };
 
@@ -184,24 +184,51 @@ function Inscription({ onGoLogin, onInscrit }) {
         <Btn onClick={creerCompte} disabled={chargement}>{chargement ? "Création..." : (plan === "gratuit" ? "Activer mon compte" : "Payer et activer")}</Btn>
       </div>
       <div onClick={() => setEtape(1)} style={{ textAlign: "center", marginTop: 14, fontSize: "0.8rem", color: C.textMuted, cursor: "pointer" }}>← Retour</div>
+      {plan !== "gratuit" && (
+        <div style={{ fontSize: "0.72rem", color: C.textMuted, textAlign: "center", marginTop: 10 }}>
+          Un email de confirmation vous sera envoyé. Votre accès Premium ne sera activé qu'après vérification du paiement.
+        </div>
+      )}
     </div>
   );
 }
 
 // ============================================================
-// ÉCRAN : Attente de vérification (plan payant)
+// ÉCRAN : Attente de vérification (juste après inscription, pas encore confirmé)
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
     <div style={{ padding: 24, textAlign: "center" }}>
-      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏳</div>
-      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Paiement en attente de vérification</div>
+      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>📧</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Vérifiez votre email</div>
       <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
-        Votre compte a été créé. Effectuez le paiement de 8 000 FCFA via Wave ou Orange Money au{" "}
-        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve de paiement sur WhatsApp.
+        Votre compte a été créé. Cliquez sur le lien reçu par email pour confirmer votre adresse.
+        Ensuite, effectuez le paiement de 8 000 FCFA via Wave ou Orange Money au{" "}
+        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve sur WhatsApp.
         Votre accès Premium sera activé dès vérification.
       </div>
       <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Retour à la connexion</div>
+    </div>
+  );
+}
+
+// ============================================================
+// ÉCRAN : Connecté mais en attente d'activation Premium
+// (empêche l'accès à l'app tant que le paiement n'est pas vérifié)
+// ============================================================
+function EnAttenteConnecte({ entreprise, onLogout }) {
+  return (
+    <div style={{ padding: 24, textAlign: "center" }}>
+      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏳</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
+        Bienvenue {entreprise.nom}, votre paiement est en cours de vérification
+      </div>
+      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
+        Votre email est bien confirmé. Il ne reste plus qu'à valider votre paiement Premium de 8 000 FCFA
+        (Wave/Orange Money au <strong style={{ color: C.text }}>07 59 57 03 27</strong>, preuve envoyée sur WhatsApp).
+        Votre espace s'ouvrira automatiquement dès l'activation.
+      </div>
+      <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>
     </div>
   );
 }
@@ -451,8 +478,16 @@ export default function PolyFinanceGF() {
     }
 
     const { data } = await supabase.from("entreprises").select("*").eq("auth_user_id", user.id).single();
-    if (data) { setEntreprise(data); setEcran("app"); }
-    else { setEcran("login"); }
+    if (!data) { setEcran("login"); return; }
+
+    setEntreprise(data);
+    // Verrou de sécurité : tant que le statut n'est pas "Gratuit" ou "Premium" actif,
+    // pas d'accès à l'application — même si la personne est bien connectée.
+    if (data.statut === "En attente") {
+      setEcran("attente-connecte");
+    } else {
+      setEcran("app");
+    }
   };
 
   useEffect(() => { chargerEntreprise(); }, []);
@@ -467,7 +502,10 @@ export default function PolyFinanceGF() {
   if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />;
   if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
   if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
+  if (ecran === "attente-connecte") return <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
   if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
+
+

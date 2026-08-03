@@ -1,407 +1,476 @@
-import { useState, useRef, useEffect } from "react";
-import Fondateur from "./Fondateur";
-import PolyFinanceGF from "./PolyFinanceGF";
+import { useState, useEffect } from "react";
+import { supabase } from "./lib/supabaseClient";
 
 const C = {
   navy: "#1B4D6E", navyDark: "#0F2E42", navyLight: "#245f85",
   teal: "#2AABAA", tealLight: "#3ECFCE", orange: "#F47B2A",
   bg: "#F5F8FA", white: "#FFFFFF", text: "#1a2a35",
-  textMuted: "#6B8FA8", border: "rgba(27,77,110,0.12)"
+  textMuted: "#6B8FA8", border: "rgba(27,77,110,0.12)",
+  red: "#ef4444", green: "#10b981", amber: "#f59e0b"
 };
 
-const AGENTS = [
-  { id: "chat", icon: "🤖", label: "Assistant", desc: "Questions financières générales", placeholder: "Posez votre question financière..." },
-  { id: "script", icon: "🎬", label: "Script", desc: "Génère tes scripts TikTok/Instagram", placeholder: "Ex: Génère un script sur le blanchiment d'argent" },
-  { id: "recherche", icon: "🔍", label: "Recherche", desc: "Analyse un sujet financier", placeholder: "Ex: Analyse le marché obligataire UEMOA 2025" },
-  { id: "brainstorming", icon: "💡", label: "Idées", desc: "Idées de contenu par pilier", placeholder: "Ex: Donne-moi des idées sur l'entrepreneuriat africain" },
-  { id: "revision", icon: "✏️", label: "Révision", desc: "Améliore ton script existant", placeholder: "Colle ton script ici pour l'améliorer..." }
+const ADMIN_EMAIL = "amazouemmanuel274@gmail.com";
+
+const PLANS = [
+  { id: "gratuit", nom: "Gratuit", prix: "0 F", periode: "2 jours d'essai", jours: 2 },
+  { id: "premium", nom: "Premium", prix: "8 000 F", periode: "/ 30 jours", jours: 30 },
 ];
 
-const S = [
-  { icon: "📈", label: "Investir BRVM", q: "Comment investir à la BRVM ?" },
-  { icon: "💹", label: "Trading", q: "Comment débuter le trading ?" },
-  { icon: "📋", label: "Bilan", q: "Comment lire un bilan comptable ?" },
-  { icon: "📱", label: "Mobile money", q: "Impact du mobile money sur les PME ?" },
-  { icon: "₿", label: "Crypto", q: "C'est quoi les cryptomonnaies ?" },
-  { icon: "🏦", label: "Finance islamique", q: "Explique la finance islamique." }
-];
-
-const TOOLS = [
-  { id: "composes", label: "Intérêts composés", emoji: "📈" },
-  { id: "epargne", label: "Capacité d'épargne", emoji: "💰" },
-  { id: "brvm", label: "Rendement BRVM", emoji: "📊" },
-  { id: "credit", label: "Coût crédit", emoji: "🏦" },
-  { id: "objectif", label: "Objectif épargne", emoji: "🎯" },
-];
-
-function formater(v) {
-  return new Intl.NumberFormat("fr-FR").format(Math.round(v)) + " FCFA";
+function fmt(v) {
+  return new Intl.NumberFormat("fr-FR").format(Math.round(Number(v) || 0)) + " F";
 }
 
-function CalcInput({ label, value, onChange, placeholder }) {
+function ajouterJours(dateStr, jours) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
+
+function Input({ label, ...props }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>
-      <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+    <div style={{ marginBottom: 12 }}>
+      {label && <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>}
+      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
     </div>
   );
 }
 
-function CalcBtn({ onClick }) {
+function Btn({ children, onClick, disabled, variant = "primary" }) {
+  const bg = variant === "primary" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : "transparent";
   return (
-    <button onClick={onClick} style={{ width: "100%", padding: 13, marginBottom: 16, background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 11, color: C.white, fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}>
-      Calculer
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 11, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" }}>
+      {children}
     </button>
   );
 }
 
-function CalcResultat({ principal, label, children, alerte }) {
+function Badge({ text, color }) {
+  const map = { vert: C.green, rouge: C.red, ambre: C.amber, gris: C.textMuted };
+  const c = map[color] || C.textMuted;
+  return <span style={{ fontSize: "0.68rem", fontWeight: 700, color: c, background: `${c}18`, padding: "3px 8px", borderRadius: 20 }}>{text}</span>;
+}
+
+// ============================================================
+// ÉCRAN : Connexion
+// ============================================================
+function Connexion({ onGoSignup, onLoggedIn }) {
+  const [email, setEmail] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [chargement, setChargement] = useState(false);
+
+  const connecter = async () => {
+    setErreur("");
+    if (!email || !motDePasse) { setErreur("Remplis tous les champs."); return; }
+    setChargement(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
+    setChargement(false);
+    if (error) { setErreur("Email ou mot de passe incorrect."); return; }
+    onLoggedIn();
+  };
+
   return (
-    <div style={{ background: `linear-gradient(135deg,${C.navy}10,${C.teal}08)`, border: `1px solid ${C.teal}40`, borderRadius: 13, padding: 18, textAlign: "center" }}>
-      {alerte && <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "7px 11px", color: "#92400e", fontSize: "0.75rem", marginBottom: 10 }}>{alerte}</div>}
-      <p style={{ color: C.textMuted, fontSize: "0.65rem", letterSpacing: 1, margin: "0 0 3px", textTransform: "uppercase" }}>{label}</p>
-      <p style={{ color: C.teal, fontSize: "1.7rem", fontWeight: 800, margin: "0 0 14px" }}>{principal}</p>
-      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>{children}</div>
+    <div style={{ padding: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>PolyFinance <span style={{ color: C.teal }}>GF</span></div>
+        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Connexion à votre espace entreprise</div>
+      </div>
+      <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
+      <Input label="Mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="••••••••" />
+      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      <Btn onClick={connecter} disabled={chargement}>{chargement ? "Connexion..." : "Se connecter"}</Btn>
+      <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
+        Pas encore de compte ? <span onClick={onGoSignup} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Créer un compte</span>
+      </div>
     </div>
   );
 }
 
-function CalcLigne({ titre, valeur, vert, rouge }) {
+// ============================================================
+// ÉCRAN : Inscription (infos + choix du plan)
+// ============================================================
+function Inscription({ onGoLogin, onInscrit }) {
+  const [etape, setEtape] = useState(1);
+  const [nomEntreprise, setNomEntreprise] = useState("");
+  const [ville, setVille] = useState("");
+  const [responsable, setResponsable] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [email, setEmail] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
+  const [confirmMotDePasse, setConfirmMotDePasse] = useState("");
+  const [plan, setPlan] = useState("premium");
+  const [erreur, setErreur] = useState("");
+  const [chargement, setChargement] = useState(false);
+
+  const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const pretEtape1 = nomEntreprise && ville && responsable && telephone && emailValide && motDePasse.length >= 6 && motDePasse === confirmMotDePasse;
+
+  const creerCompte = async () => {
+    setErreur("");
+    setChargement(true);
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: motDePasse });
+    if (authError) {
+      setChargement(false);
+      setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Erreur : " + authError.message);
+      return;
+    }
+
+    const planChoisi = PLANS.find(p => p.id === plan);
+    const statutInitial = plan === "gratuit" ? "Gratuit" : "En attente";
+    const dateExpiration = plan === "gratuit" ? ajouterJours(new Date().toISOString().slice(0, 10), planChoisi.jours) : null;
+
+    const { error: dbError } = await supabase.from("entreprises").insert({
+      auth_user_id: authData.user.id,
+      nom: nomEntreprise,
+      ville,
+      responsable,
+      telephone,
+      email,
+      plan,
+      statut: statutInitial,
+      date_expiration: dateExpiration,
+      objectif: 0,
+    });
+
+    setChargement(false);
+    if (dbError) { setErreur("Compte créé mais erreur d'enregistrement : " + dbError.message); return; }
+
+    onInscrit(plan);
+  };
+
+  if (etape === 1) {
+    return (
+      <div style={{ padding: 20 }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Créer votre compte entreprise</div>
+          <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 1 sur 2</div>
+        </div>
+        <Input label="Nom de l'entreprise" value={nomEntreprise} onChange={e => setNomEntreprise(e.target.value)} placeholder="Ets Koffi & Fils" />
+        <Input label="Ville" value={ville} onChange={e => setVille(e.target.value)} placeholder="Bouaké" />
+        <Input label="Nom du responsable" value={responsable} onChange={e => setResponsable(e.target.value)} placeholder="Emmanuel Koffi" />
+        <Input label="Téléphone / WhatsApp" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="07 01 02 03 04" />
+        <Input label="Email professionnel" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
+        <Input label="Créer un mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="Min. 6 caractères" />
+        <Input label="Confirmation du mot de passe" type="password" value={confirmMotDePasse} onChange={e => setConfirmMotDePasse(e.target.value)} placeholder="••••••••" />
+        {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+        <Btn onClick={() => pretEtape1 ? setEtape(2) : setErreur("Vérifie tous les champs et les mots de passe.")}>Continuer</Btn>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
+          Déjà un compte ? <span onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Se connecter</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span style={{ color: C.textMuted, fontSize: "0.75rem" }}>{titre}</span>
-      <span style={{ color: rouge ? "#ef4444" : vert ? "#10b981" : C.text, fontWeight: 700, fontSize: "0.85rem" }}>{valeur}</span>
+    <div style={{ padding: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Choisissez votre abonnement</div>
+        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 2 sur 2 — {nomEntreprise}</div>
+      </div>
+      {PLANS.map(p => (
+        <div key={p.id} onClick={() => setPlan(p.id)}
+          style={{ border: `2px solid ${plan === p.id ? C.teal : C.border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>{p.nom}</div>
+            <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.periode}</div>
+          </div>
+          <div style={{ fontWeight: 800, color: C.teal }}>{p.prix}</div>
+        </div>
+      ))}
+      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", margin: "12px 0" }}>{erreur}</div>}
+      <div style={{ marginTop: 16 }}>
+        <Btn onClick={creerCompte} disabled={chargement}>{chargement ? "Création..." : (plan === "gratuit" ? "Activer mon compte" : "Payer et activer")}</Btn>
+      </div>
+      <div onClick={() => setEtape(1)} style={{ textAlign: "center", marginTop: 14, fontSize: "0.8rem", color: C.textMuted, cursor: "pointer" }}>← Retour</div>
     </div>
   );
 }
 
-function Composes() {
-  const [capital, setCapital] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
-  function calculer() { const C2 = parseFloat(capital), r = parseFloat(taux) / 100, n = parseInt(duree); if (!C2 || !r || !n) return; const final = C2 * Math.pow(1 + r, n); setRes({ final, interets: final - C2 }); }
-  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien vaut ton argent après N ans avec des intérêts qui s'accumulent ?</p><CalcInput label="Capital initial (FCFA)" value={capital} onChange={setCapital} placeholder="ex: 500 000" /><CalcInput label="Taux annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 8" /><CalcInput label="Durée (années)" value={duree} onChange={setDuree} placeholder="ex: 10" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.final)} label="Montant final"><CalcLigne titre="Capital de départ" valeur={formater(parseFloat(capital))} /><CalcLigne titre="Intérêts gagnés" valeur={formater(res.interets)} vert /></CalcResultat>)}</div>);
-}
-
-function Epargne() {
-  const [revenus, setRevenus] = useState(""); const [depenses, setDepenses] = useState(""); const [res, setRes] = useState(null);
-  function calculer() { const R = parseFloat(revenus), D = parseFloat(depenses); if (!R || !D) return; const capacite = R - D; setRes({ capacite, taux: (capacite / R) * 100 }); }
-  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien peux-tu mettre de côté chaque mois ?</p><CalcInput label="Revenus mensuels (FCFA)" value={revenus} onChange={setRevenus} placeholder="ex: 150 000" /><CalcInput label="Dépenses mensuelles (FCFA)" value={depenses} onChange={setDepenses} placeholder="ex: 100 000" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(Math.max(0, res.capacite))} label="Épargne possible / mois" alerte={res.capacite <= 0 ? "⚠️ Dépenses supérieures aux revenus" : null}><CalcLigne titre="Taux d'épargne" valeur={res.taux.toFixed(1) + "%"} vert={res.taux >= 20} /><CalcLigne titre="Taux conseillé" valeur="≥ 20%" /></CalcResultat>)}</div>);
-}
-
-function BRVM() {
-  const [pa, setPa] = useState(""); const [pv, setPv] = useState(""); const [div, setDiv] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
-  function calculer() { const PA = parseFloat(pa), PV = parseFloat(pv), D = parseFloat(div) || 0, N = parseInt(duree) || 1; if (!PA || !PV) return; const pv2 = PV - PA; const gain = pv2 + D; const rend = (gain / PA) * 100; setRes({ pv2, gain, rend, rendAnnuel: rend / N }); }
-  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Calcule ton rendement réel sur une action BRVM.</p><CalcInput label="Prix d'achat / action (FCFA)" value={pa} onChange={setPa} placeholder="ex: 12 500" /><CalcInput label="Prix de vente / action (FCFA)" value={pv} onChange={setPv} placeholder="ex: 15 000" /><CalcInput label="Dividendes reçus / action (FCFA)" value={div} onChange={setDiv} placeholder="ex: 500 (optionnel)" /><CalcInput label="Durée de détention (années)" value={duree} onChange={setDuree} placeholder="ex: 2" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={res.rend.toFixed(2) + "%"} label="Rendement total"><CalcLigne titre="Plus-value" valeur={formater(res.pv2)} vert={res.pv2 > 0} /><CalcLigne titre="Gain total" valeur={formater(res.gain)} vert /><CalcLigne titre="Rendement annuel" valeur={res.rendAnnuel.toFixed(2) + "%"} /></CalcResultat>)}</div>);
-}
-
-function Credit() {
-  const [montant, setMontant] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
-  function calculer() { const P = parseFloat(montant), r = parseFloat(taux) / 100 / 12, n = parseInt(duree); if (!P || !r || !n) return; const m = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1); const total = m * n; setRes({ m, total, cout: total - P }); }
-  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien ce crédit te coûte vraiment au total ?</p><CalcInput label="Montant emprunté (FCFA)" value={montant} onChange={setMontant} placeholder="ex: 1 000 000" /><CalcInput label="Taux annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 12" /><CalcInput label="Durée (mois)" value={duree} onChange={setDuree} placeholder="ex: 24" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.m)} label="Mensualité"><CalcLigne titre="Total remboursé" valeur={formater(res.total)} /><CalcLigne titre="Coût des intérêts" valeur={formater(res.cout)} rouge /></CalcResultat>)}</div>);
-}
-
-function Objectif() {
-  const [cible, setCible] = useState(""); const [actuel, setActuel] = useState(""); const [taux, setTaux] = useState(""); const [duree, setDuree] = useState(""); const [res, setRes] = useState(null);
-  function calculer() { const FV = parseFloat(cible), PV = parseFloat(actuel) || 0, r = parseFloat(taux) / 100 / 12, n = parseInt(duree); if (!FV || !n) return; const fvActuel = PV * Math.pow(1 + r, n); const reste = FV - fvActuel; const m = r > 0 ? (reste * r) / (Math.pow(1 + r, n) - 1) : reste / n; setRes({ m: Math.max(0, m), fvActuel }); }
-  return (<div><p style={{ color: C.textMuted, fontSize: "0.78rem", marginBottom: 16 }}>Combien épargner chaque mois pour atteindre ton objectif ?</p><CalcInput label="Objectif à atteindre (FCFA)" value={cible} onChange={setCible} placeholder="ex: 5 000 000" /><CalcInput label="Épargne déjà disponible (FCFA)" value={actuel} onChange={setActuel} placeholder="ex: 200 000 (optionnel)" /><CalcInput label="Taux de placement annuel (%)" value={taux} onChange={setTaux} placeholder="ex: 5" /><CalcInput label="Délai (mois)" value={duree} onChange={setDuree} placeholder="ex: 36" /><CalcBtn onClick={calculer} />{res && (<CalcResultat principal={formater(res.m)} label="À épargner / mois"><CalcLigne titre="Valeur future de ton épargne actuelle" valeur={formater(res.fvActuel)} vert /></CalcResultat>)}</div>);
-}
-
-function F({ text }) {
+// ============================================================
+// ÉCRAN : Attente de vérification (plan payant)
+// ============================================================
+function EnAttente({ onGoLogin }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {text.split("\n").map((l, i) => {
-        if (l.match(/^#{2,3}\s/)) return <div key={i} style={{ color: C.teal, fontWeight: 700, marginTop: 8 }}>{l.replace(/^#{2,3}\s/, "")}</div>;
-        if (l.match(/^[-•]\s/)) return <div key={i} style={{ display: "flex", gap: 8 }}><span style={{ color: C.orange }}>▸</span><span dangerouslySetInnerHTML={{ __html: l.replace(/^[-•]\s/, "").replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`) }} /></div>;
-        if (!l.trim()) return <div key={i} style={{ height: 6 }} />;
-        return <div key={i} dangerouslySetInnerHTML={{ __html: l.replace(/\*\*(.*?)\*\*/g, `<strong>$1</strong>`) }} />;
-      })}
+    <div style={{ padding: 24, textAlign: "center" }}>
+      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏳</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Paiement en attente de vérification</div>
+      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
+        Votre compte a été créé. Effectuez le paiement de 8 000 FCFA via Wave ou Orange Money au{" "}
+        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve de paiement sur WhatsApp.
+        Votre accès Premium sera activé dès vérification.
+      </div>
+      <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Retour à la connexion</div>
     </div>
   );
 }
 
-function Logo({ s = 32 }) {
+// ============================================================
+// ESPACE ADMINISTRATEUR
+// ============================================================
+function AdminDashboard({ onLogout }) {
+  const [entreprises, setEntreprises] = useState([]);
+  const [chargement, setChargement] = useState(true);
+
+  const recharger = async () => {
+    setChargement(true);
+    const { data } = await supabase.from("entreprises").select("*").order("created_at", { ascending: false });
+    setEntreprises(data || []);
+    setChargement(false);
+  };
+
+  useEffect(() => { recharger(); }, []);
+
+  const activerPremium = async (id) => {
+    const nouvelleDate = ajouterJours(new Date().toISOString().slice(0, 10), 30);
+    await supabase.from("entreprises").update({ statut: "Premium", plan: "premium", date_expiration: nouvelleDate }).eq("id", id);
+    recharger();
+  };
+
+  const couleurStatut = (statut) => statut === "Premium" ? "vert" : statut === "En attente" ? "ambre" : "gris";
+
   return (
-    <svg width={s} height={s} viewBox="0 0 100 100" fill="none">
-      <rect x="8" y="62" width="14" height="28" rx="2" fill={C.navyDark} />
-      <rect x="28" y="44" width="14" height="46" rx="2" fill={C.teal} />
-      <rect x="48" y="30" width="14" height="60" rx="2" fill={C.teal} />
-      <rect x="68" y="16" width="14" height="74" rx="2" fill={C.orange} />
-      <path d="M12 68 Q40 20 82 8" stroke={C.navyDark} strokeWidth="4" strokeLinecap="round" fill="none" />
-      <polygon points="82,4 92,14 78,12" fill={C.navyDark} />
-    </svg>
+    <div>
+      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>Espace Administrateur</div>
+          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>PolyFinance GF</div>
+        </div>
+        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+      </div>
+      <div style={{ padding: 16 }}>
+        {chargement && <div style={{ color: C.textMuted, textAlign: "center", padding: 20 }}>Chargement...</div>}
+        {!chargement && entreprises.length === 0 && (
+          <div style={{ color: C.textMuted, textAlign: "center", padding: 20 }}>Aucune entreprise inscrite pour l'instant.</div>
+        )}
+        {entreprises.map(e => (
+          <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.text }}>{e.nom}</div>
+                <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{e.responsable} · {e.telephone}</div>
+              </div>
+              <Badge text={e.statut} color={couleurStatut(e.statut)} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0 }}>
+              <span>Plan : {e.plan}</span>
+              <span>{e.date_expiration ? `Expire le ${e.date_expiration}` : "Pas d'expiration"}</span>
+            </div>
+            {e.statut === "En attente" && (
+              <Btn onClick={() => activerPremium(e.id)}>✅ Activer Premium</Btn>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function Dots() {
+// ============================================================
+// APPLICATION PRINCIPALE (une fois connecté — côté entreprise)
+// ============================================================
+function TableauDeBord({ entreprise, clients, paiements }) {
+  const encaisse = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
+  const enAttente = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const encaisseAujourdhui = paiements.filter(p => p.statut === "Payé" && p.date === aujourdHui).reduce((s, p) => s + Number(p.montant), 0);
+  const enRetard = clients.filter(c => paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui)).length;
+
   return (
-    <div style={{ display: "flex", gap: 5 }}>
-      {[0, 1, 2].map(i => (
-        <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: C.teal, display: "inline-block", animation: `db 1.2s ${i * 0.2}s infinite` }} />
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {[
+          ["Aujourd'hui", fmt(encaisseAujourdhui), C.green],
+          ["Ce mois", fmt(encaisse), C.green],
+          ["Reste à encaisser", fmt(enAttente), C.amber],
+          ["Clients à relancer", enRetard, C.red],
+        ].map(([label, val, color], i) => (
+          <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ color: C.textMuted, fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+            <div style={{ fontWeight: 800, fontSize: "1.15rem", color }}>{val}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Derniers paiements</div>
+        {paiements.slice(0, 5).map(p => {
+          const client = clients.find(c => c.id === p.client_id);
+          return (
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: "0.8rem" }}>
+              <span>{client?.nom || "Client supprimé"}</span>
+              <span style={{ fontWeight: 700 }}>{fmt(p.montant)}</span>
+            </div>
+          );
+        })}
+        {paiements.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucun paiement encore.</div>}
+      </div>
+    </div>
+  );
+}
+
+function ClientsView({ entreprise, clients, recharger }) {
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+
+  const ajouter = async () => {
+    if (!nom) return;
+    await supabase.from("clients").insert({ entreprise_id: entreprise.id, nom, telephone, statut: "Actif" });
+    setNom(""); setTelephone("");
+    recharger();
+  };
+
+  const supprimer = async (id) => {
+    await supabase.from("clients").delete().eq("id", id);
+    recharger();
+  };
+
+  return (
+    <div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un client</div>
+        <Input placeholder="Nom du client" value={nom} onChange={e => setNom(e.target.value)} />
+        <Input placeholder="Téléphone" value={telephone} onChange={e => setTelephone(e.target.value)} />
+        <Btn onClick={ajouter}>Ajouter</Btn>
+      </div>
+      {clients.map(c => (
+        <div key={c.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.text }}>{c.nom}</div>
+            <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{c.telephone}</div>
+          </div>
+          <span onClick={() => supprimer(c.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
+        </div>
       ))}
     </div>
   );
 }
 
-function Input({ onSend, placeholder }) {
-  const [v, setV] = useState("");
-  const r = useRef(null);
-  const go = () => {
-    if (!v.trim()) return;
-    onSend(v.trim());
-    setV("");
-    setTimeout(() => r.current && r.current.focus(), 50);
+function PaiementsView({ entreprise, clients, paiements, recharger }) {
+  const [clientId, setClientId] = useState("");
+  const [montant, setMontant] = useState("");
+  const [statut, setStatut] = useState("Payé");
+
+  const ajouter = async () => {
+    if (!clientId || !montant) return;
+    await supabase.from("paiements").insert({
+      entreprise_id: entreprise.id, client_id: clientId, montant: Number(montant),
+      mode: "Wave", date: new Date().toISOString().slice(0, 10), statut,
+    });
+    setMontant("");
+    recharger();
   };
+
   return (
-    <div style={{ padding: "10px 14px 16px", background: C.white, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 9, background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 13, padding: "8px 11px" }}>
-        <textarea ref={r} value={v} onChange={e => setV(e.target.value)} placeholder={placeholder || "Posez votre question..."} style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontFamily: "inherit", fontSize: "0.86rem", resize: "none", minHeight: 24, maxHeight: 120, lineHeight: 1.5 }} rows={1}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
-        <button onClick={go} disabled={!v.trim()} style={{ width: 34, height: 34, borderRadius: 9, border: "none", background: !v.trim() ? "#ddd" : `linear-gradient(135deg,${C.teal},${C.tealLight})`, cursor: !v.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill={!v.trim() ? "#999" : C.white}><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-        </button>
+    <div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer un paiement</div>
+        <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <option value="">— Choisir un client —</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+        </select>
+        <Input type="number" placeholder="Montant (FCFA)" value={montant} onChange={e => setMontant(e.target.value)} />
+        <select value={statut} onChange={e => setStatut(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <option>Payé</option><option>En attente</option>
+        </select>
+        <Btn onClick={ajouter}>Enregistrer</Btn>
       </div>
-      <div style={{ textAlign: "center", fontSize: "0.66rem", color: C.textMuted, marginTop: 6 }}>Poly Finance AI · 100% Gratuit</div>
+      {paiements.map(p => {
+        const client = clients.find(c => c.id === p.client_id);
+        return (
+          <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{client?.nom || "—"}</div>
+              <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.date}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontWeight: 700 }}>{fmt(p.montant)}</div>
+              <Badge text={p.statut} color={p.statut === "Payé" ? "vert" : "ambre"} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EspaceEntreprise({ entreprise, onLogout }) {
+  const [tab, setTab] = useState("dashboard");
+  const [clients, setClients] = useState([]);
+  const [paiements, setPaiements] = useState([]);
+
+  const recharger = async () => {
+    const { data: c } = await supabase.from("clients").select("*").order("created_at", { ascending: false });
+    const { data: p } = await supabase.from("paiements").select("*").order("date", { ascending: false });
+    setClients(c || []);
+    setPaiements(p || []);
+  };
+
+  useEffect(() => { recharger(); }, []);
+
+  return (
+    <div>
+      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entreprise.nom}</div>
+          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entreprise.statut} {entreprise.date_expiration ? `· jusqu'au ${entreprise.date_expiration}` : ""}</div>
+        </div>
+        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+      </div>
+      <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"]].map(([id, label]) => (
+          <div key={id} onClick={() => setTab(id)}
+            style={{ flex: 1, textAlign: "center", padding: "10px 4px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer" }}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: 16 }}>
+        {tab === "dashboard" && <TableauDeBord entreprise={entreprise} clients={clients} paiements={paiements} />}
+        {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} recharger={recharger} />}
+        {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
+      </div>
     </div>
   );
 }
 
 // ============================================================
-// ÉCRAN D'ACCUEIL — choix entre PolyFinance AI et PolyFinance GF
+// COMPOSANT RACINE — à importer dans App.jsx
 // ============================================================
-function Landing({ onChoisirIA, onChoisirGF }) {
-  return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.navyDark},${C.navy} 60%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <Logo s={64} />
-      <div style={{ color: C.white, fontWeight: 800, fontSize: "1.5rem", marginTop: 14 }}>PolyFinance</div>
-      <div style={{ color: C.tealLight, fontSize: "0.85rem", marginTop: 4, marginBottom: 36, textAlign: "center" }}>
-        Choisissez votre espace
-      </div>
+export default function PolyFinanceGF() {
+  const [ecran, setEcran] = useState("chargement");
+  const [entreprise, setEntreprise] = useState(null);
 
-      <button onClick={onChoisirIA} style={{ width: "100%", maxWidth: 360, textAlign: "left", background: C.white, border: "none", borderRadius: 16, padding: 20, marginBottom: 16, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.15)" }}>
-        <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>🤖</div>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.05rem" }}>PolyFinance AI</div>
-        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>
-          Éducation financière, assistant IA, outils — pour étudiants et particuliers
-        </div>
-      </button>
+  const chargerEntreprise = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setEcran("login"); return; }
 
-      <button onClick={onChoisirGF} style={{ width: "100%", maxWidth: 360, textAlign: "left", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 16, padding: 20, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.15)" }}>
-        <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>🏢</div>
-        <div style={{ color: C.white, fontWeight: 800, fontSize: "1.05rem" }}>PolyFinance GF</div>
-        <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.78rem", marginTop: 4 }}>
-          Gestion clients, paiements, créances — pour entreprises et PME
-        </div>
-      </button>
-    </div>
-  );
-}
-
-export default function App() {
-  const [page, setPage] = useState("landing");
-  const [activeAgent, setActiveAgent] = useState("chat");
-  const [activeTool, setActiveTool] = useState("composes");
-  const [chats, setChats] = useState({ chat: [], script: [], recherche: [], brainstorming: [], revision: [] });
-  const [chatMessages, setChatMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
-  const bottomRefChat = useRef(null);
-
-  const currentMessages = chats[activeAgent] || [];
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chats, loading]);
-  useEffect(() => { bottomRefChat.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, loading]);
-
-  const sendMessage = async (text, isDirectChat = false) => {
-    const userMsg = { role: "user", content: text };
-    if (isDirectChat) {
-      setChatMessages(prev => [...prev, userMsg]);
-      setLoading(true);
-      try {
-        const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agentType: "chat", messages: [...chatMessages, userMsg] }) });
-        const data = await res.json();
-        setChatMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Erreur de réponse." }]);
-      } catch { setChatMessages(prev => [...prev, { role: "assistant", content: "Erreur de connexion." }]); }
-      setLoading(false);
+    if (user.email === ADMIN_EMAIL) {
+      setEcran("admin");
       return;
     }
-    setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg] }));
-    setLoading(true);
-    try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agentType: activeAgent, messages: [...chats[activeAgent], userMsg] }) });
-      const data = await res.json();
-      setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: data.content?.[0]?.text || "Erreur de réponse." }] }));
-    } catch { setChats(prev => ({ ...prev, [activeAgent]: [...prev[activeAgent], userMsg, { role: "assistant", content: "Erreur de connexion." }] })); }
-    setLoading(false);
+
+    const { data } = await supabase.from("entreprises").select("*").eq("auth_user_id", user.id).single();
+    if (data) { setEntreprise(data); setEcran("app"); }
+    else { setEcran("login"); }
   };
 
-  const agent = AGENTS.find(a => a.id === activeAgent);
-  const toolComposants = { composes: Composes, epargne: Epargne, brvm: BRVM, credit: Credit, objectif: Objectif };
-  const ActiveTool = toolComposants[activeTool];
+  useEffect(() => { chargerEntreprise(); }, []);
 
-  // ÉCRAN D'ACCUEIL — avant tout choix
-  if (page === "landing") {
-    return <Landing onChoisirIA={() => setPage("home")} onChoisirGF={() => setPage("gf")} />;
-  }
+  const seDeconnecter = async () => {
+    await supabase.auth.signOut();
+    setEntreprise(null);
+    setEcran("login");
+  };
 
-  return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" }}>
-      <style>{`@keyframes db{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box}body{margin:0}`}</style>
-
-      {/* HEADER — masqué pour l'espace GF, qui a son propre en-tête */}
-      {page !== "gf" && (
-        <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px 10px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div onClick={() => setPage("landing")} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
-              <Logo s={30} />
-              <div>
-                <div style={{ color: C.white, fontWeight: 700, fontSize: "1rem" }}>Poly Finance AI</div>
-                <div style={{ color: C.tealLight, fontSize: "0.65rem" }}>Finance africaine · 5 agents IA</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
-              {[["home","Accueil"],["chat","Chat"],["agents","Agents"],["outils","Outils"],["fondateur","Fondateur"]].map(([p,label]) => (
-                <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? C.teal : "rgba(255,255,255,0.1)", border: "none", borderRadius: 7, padding: "5px 9px", color: C.white, fontSize: "0.70rem", cursor: "pointer", fontWeight: page === p ? 700 : 400, flexShrink: 0 }}>{label}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PAGE ACCUEIL (IA) */}
-      {page === "home" && (
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          <div style={{ textAlign: "center", padding: "24px 0 20px" }}>
-            <Logo s={52} />
-            <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.3rem", marginTop: 10 }}>Poly Finance AI</div>
-            <div style={{ color: C.textMuted, fontSize: "0.8rem", marginTop: 4 }}>Premier assistant financier IA pour l'Afrique francophone</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-            {S.map((s, i) => (
-              <button key={i} onClick={() => { setPage("chat"); setTimeout(() => sendMessage(s.q, true), 100); }}
-                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", textAlign: "left" }}>
-                <div style={{ fontSize: "1.4rem" }}>{s.icon}</div>
-                <div style={{ color: C.navy, fontWeight: 600, fontSize: "0.78rem", marginTop: 4 }}>{s.label}</div>
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setPage("outils")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.orange},#f59e0b)`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer", marginBottom: 10 }}>
-            🧮 Outils Financiers
-          </button>
-          <button onClick={() => setPage("agents")} style={{ width: "100%", padding: "12px", background: `linear-gradient(135deg,${C.teal},${C.tealLight})`, border: "none", borderRadius: 13, color: C.white, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" }}>
-            🤖 Accéder aux 5 Agents IA
-          </button>
-        </div>
-      )}
-
-      {/* PAGE CHAT */}
-      {page === "chat" && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
-            {chatMessages.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>🤖</div>
-                <div style={{ fontWeight: 600, color: C.navy, marginBottom: 6 }}>Poly Finance AI</div>
-                <div style={{ fontSize: "0.8rem" }}>Pose-moi n'importe quelle question financière</div>
-              </div>
-            )}
-            {chatMessages.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                <div style={{ maxWidth: "82%", background: m.role === "user" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : C.white, color: m.role === "user" ? C.white : C.text, borderRadius: m.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px", padding: "9px 13px", fontSize: "0.83rem", lineHeight: 1.5, border: m.role === "user" ? "none" : `1px solid ${C.border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                  {m.role === "assistant" ? <F text={m.content} /> : m.content}
-                </div>
-              </div>
-            ))}
-            {loading && page === "chat" && (
-              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}><Dots /></div>
-              </div>
-            )}
-            <div ref={bottomRefChat} />
-          </div>
-          <Input onSend={(t) => sendMessage(t, true)} placeholder="Posez votre question financière..." />
-        </div>
-      )}
-
-      {/* PAGE AGENTS */}
-      {page === "agents" && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
-            <div style={{ display: "flex", padding: "8px 10px", gap: 6, minWidth: "max-content" }}>
-              {AGENTS.map(a => (
-                <button key={a.id} onClick={() => setActiveAgent(a.id)}
-                  style={{ background: activeAgent === a.id ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : C.bg, border: `1px solid ${activeAgent === a.id ? C.teal : C.border}`, borderRadius: 10, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                  <span style={{ fontSize: "0.9rem" }}>{a.icon}</span>
-                  <span style={{ color: activeAgent === a.id ? C.white : C.text, fontWeight: 600, fontSize: "0.75rem" }}>{a.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ background: `linear-gradient(135deg,${C.navy}15,${C.teal}10)`, padding: "8px 14px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-            <div style={{ fontSize: "0.75rem", color: C.navy, fontWeight: 600 }}>{agent?.icon} {agent?.label} — <span style={{ color: C.textMuted, fontWeight: 400 }}>{agent?.desc}</span></div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
-            {currentMessages.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>{agent?.icon}</div>
-                <div style={{ fontWeight: 600, color: C.navy, marginBottom: 6 }}>{agent?.label}</div>
-                <div style={{ fontSize: "0.8rem" }}>{agent?.desc}</div>
-              </div>
-            )}
-            {currentMessages.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                <div style={{ maxWidth: "82%", background: m.role === "user" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : C.white, color: m.role === "user" ? C.white : C.text, borderRadius: m.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px", padding: "9px 13px", fontSize: "0.83rem", lineHeight: 1.5, border: m.role === "user" ? "none" : `1px solid ${C.border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                  {m.role === "assistant" ? <F text={m.content} /> : m.content}
-                </div>
-              </div>
-            ))}
-            {loading && page === "agents" && (
-              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 3px", padding: "10px 14px" }}><Dots /></div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-          <Input onSend={sendMessage} placeholder={agent?.placeholder} />
-        </div>
-      )}
-
-      {/* PAGE OUTILS */}
-      {page === "outils" && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
-            <div style={{ display: "flex", padding: "8px 10px", gap: 6, minWidth: "max-content" }}>
-              {TOOLS.map(t => (
-                <button key={t.id} onClick={() => setActiveTool(t.id)}
-                  style={{ background: activeTool === t.id ? `linear-gradient(135deg,${C.orange},#f59e0b)` : C.bg, border: `1px solid ${activeTool === t.id ? C.orange : C.border}`, borderRadius: 10, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                  <span style={{ fontSize: "0.9rem" }}>{t.emoji}</span>
-                  <span style={{ color: activeTool === t.id ? C.white : C.text, fontWeight: 600, fontSize: "0.75rem" }}>{t.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-            <ActiveTool />
-          </div>
-        </div>
-      )}
-
-      {/* PAGE GF */}
-      {page === "gf" && (
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <div onClick={() => setPage("landing")} style={{ background: C.navyDark, color: "rgba(255,255,255,0.6)", fontSize: "0.72rem", padding: "8px 16px", cursor: "pointer" }}>
-            ← Retour à l'accueil PolyFinance
-          </div>
-          <PolyFinanceGF />
-        </div>
-      )}
-
-      {/* PAGE FONDATEUR */}
-      {page === "fondateur" && (
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <Fondateur />
-        </div>
-      )}
-
-    </div>
-  );
+  if (ecran === "chargement") return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>;
+  if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />;
+  if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
+  if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
+  if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
+  if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
+  return null;
 }
+
+
+

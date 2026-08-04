@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
 
@@ -364,9 +365,13 @@ function TableauDeBord({ clients, paiements, creances }) {
   );
 }
 
-function ClientsView({ entreprise, clients, recharger }) {
+// ============================================================
+// CLIENTS (avec détail + historique en cliquant sur le nom)
+// ============================================================
+function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [clientOuvert, setClientOuvert] = useState(null);
 
   const ajouter = async () => {
     if (!nom) return;
@@ -380,6 +385,61 @@ function ClientsView({ entreprise, clients, recharger }) {
     recharger();
   };
 
+  const modifierClient = async (id, champ, valeur) => {
+    await supabase.from("clients").update({ [champ]: valeur }).eq("id", id);
+    recharger();
+  };
+
+  if (clientOuvert) {
+    const client = clients.find(c => c.id === clientOuvert.id) || clientOuvert;
+    const historiquePaiements = paiements.filter(p => p.client_id === client.id);
+    const historiqueCreances = creances.filter(cr => cr.client_id === client.id);
+    const totalPaye = historiquePaiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
+
+    return (
+      <div>
+        <div onClick={() => setClientOuvert(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux clients</div>
+
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <Input label="Nom" defaultValue={client.nom} onBlur={e => modifierClient(client.id, "nom", e.target.value)} />
+          <Input label="Téléphone" defaultValue={client.telephone} onBlur={e => modifierClient(client.id, "telephone", e.target.value)} />
+          <div style={{ color: C.textMuted, fontSize: "0.72rem", marginTop: 4 }}>Statut : {client.statut}</div>
+        </div>
+
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ color: C.textMuted, fontSize: "0.68rem" }}>TOTAL ENCAISSÉ</div>
+          <div style={{ color: C.green, fontWeight: 800, fontSize: "1.15rem" }}>{fmt(totalPaye)}</div>
+        </div>
+
+        {historiqueCreances.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Créances échelonnées</div>
+            {historiqueCreances.map(cr => (
+              <div key={cr.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{fmt(cr.montant_total)}</div>
+                <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{(cr.echeances || []).filter(e => e.paye).length} / {cr.nombre_echeances} échéances payées</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Historique des paiements</div>
+          {historiquePaiements.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucun paiement enregistré.</div>}
+          {historiquePaiements.map(p => (
+            <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{fmt(p.montant)}</div>
+                <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.date} · {p.mode}</div>
+              </div>
+              <Badge text={p.statut} color={p.statut === "Payé" ? "vert" : "ambre"} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
@@ -390,8 +450,8 @@ function ClientsView({ entreprise, clients, recharger }) {
       </div>
       {clients.map(c => (
         <div key={c.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.text }}>{c.nom}</div>
+          <div onClick={() => setClientOuvert(c)} style={{ cursor: "pointer", flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.teal }}>{c.nom}</div>
             <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{c.telephone}</div>
           </div>
           <span onClick={() => supprimer(c.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
@@ -612,7 +672,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
       </div>
       <div style={{ padding: 16 }}>
         {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} />}
-        {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} recharger={recharger} />}
+        {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
         {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
         {tab === "creances" && <CreancesView entreprise={entreprise} clients={clients} creances={creances} recharger={recharger} />}
       </div>
@@ -664,4 +724,3 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
-

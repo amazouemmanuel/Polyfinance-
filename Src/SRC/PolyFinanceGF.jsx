@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
 
@@ -129,38 +128,38 @@ function Inscription({ onGoLogin, onInscrit }) {
   const [chargement, setChargement] = useState(false);
 
   const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const pretEtape1 = nomEntreprise && ville && responsable && telephone && emailValide && motDePasse.length >= 6 && motDePasse === confirmMotDePasse;
+  const motDePasseValide = /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,}$/.test(motDePasse);
+  const pretEtape1 = nomEntreprise && ville && responsable && telephone && emailValide && motDePasseValide && motDePasse === confirmMotDePasse;
 
   const creerCompte = async () => {
     setErreur("");
     setChargement(true);
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: motDePasse });
-    if (authError) {
-      setChargement(false);
-      setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Erreur : " + authError.message);
-      return;
-    }
-
     const planChoisi = PLANS.find(p => p.id === plan);
     const statutInitial = plan === "gratuit" ? "Gratuit" : "En attente";
-    const dateExpiration = plan === "gratuit" ? ajouterJours(new Date().toISOString().slice(0, 10), planChoisi.jours) : null;
+    const dateExpiration = plan === "gratuit" ? ajouterJours(new Date().toISOString().slice(0, 10), planChoisi.jours) : "";
 
-    const { error: dbError } = await supabase.from("entreprises").insert({
-      auth_user_id: authData.user.id,
-      nom: nomEntreprise,
-      ville,
-      responsable,
-      telephone,
+    const { error: authError } = await supabase.auth.signUp({
       email,
-      plan,
-      statut: statutInitial,
-      date_expiration: dateExpiration,
-      objectif: 0,
+      password: motDePasse,
+      options: {
+        data: {
+          nom_entreprise: nomEntreprise,
+          ville,
+          responsable,
+          telephone,
+          plan,
+          statut: statutInitial,
+          date_expiration: dateExpiration,
+        },
+      },
     });
 
     setChargement(false);
-    if (dbError) { setErreur("Compte créé mais erreur d'enregistrement : " + dbError.message); return; }
+    if (authError) {
+      setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Une erreur est survenue, réessayez.");
+      return;
+    }
 
     onInscrit(plan);
   };
@@ -179,8 +178,11 @@ function Inscription({ onGoLogin, onInscrit }) {
         <Input label="Email professionnel" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
         <Input label="Créer un mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="Min. 6 caractères" />
         <Input label="Confirmation du mot de passe" type="password" value={confirmMotDePasse} onChange={e => setConfirmMotDePasse(e.target.value)} placeholder="••••••••" />
+        <div style={{ color: C.textMuted, fontSize: "0.72rem", marginBottom: 12 }}>
+          Le mot de passe doit contenir au moins 6 caractères, un chiffre et un caractère spécial (ex: # ! *).
+        </div>
         {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
-        <Btn onClick={() => pretEtape1 ? setEtape(2) : setErreur("Vérifie tous les champs et les mots de passe.")}>Continuer</Btn>
+        <Btn onClick={() => pretEtape1 ? setEtape(2) : setErreur("Vérifie tous les champs, et que le mot de passe respecte le format demandé.")}>Continuer</Btn>
         <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
           Déjà un compte ? <span onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Se connecter</span>
         </div>
@@ -724,3 +726,4 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
+

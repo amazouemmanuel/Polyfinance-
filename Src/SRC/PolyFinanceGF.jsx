@@ -260,6 +260,26 @@ function EnAttenteConnecte({ entreprise, onLogout }) {
 }
 
 // ============================================================
+// ÉCRAN : Accès expiré (Gratuit ou Premium dépassé)
+// ============================================================
+function AccesExpire({ entreprise, onLogout }) {
+  return (
+    <div style={{ padding: 24, textAlign: "center" }}>
+      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏰</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
+        Votre accès a expiré
+      </div>
+      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
+        Votre période {entreprise.plan === "gratuit" ? "d'essai gratuit" : "Premium"} est terminée.
+        Passez en Premium (8 000 FCFA / 30 jours) via Wave ou Orange Money au{" "}
+        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve sur WhatsApp.
+      </div>
+      <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>
+    </div>
+  );
+}
+
+// ============================================================
 // ESPACE ADMINISTRATEUR
 // ============================================================
 function AdminDashboard({ onLogout }) {
@@ -702,8 +722,13 @@ export default function PolyFinanceGF() {
     if (!data) { setEcran("login"); return; }
 
     setEntreprise(data);
+    const aujourdHui = new Date().toISOString().slice(0, 10);
+    const expire = data.date_expiration && data.date_expiration < aujourdHui;
+
     if (data.statut === "En attente") {
       setEcran("attente-connecte");
+    } else if (expire) {
+      setEcran("expire");
     } else {
       setEcran("app");
     }
@@ -722,8 +747,8 @@ export default function PolyFinanceGF() {
   if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
   if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
   if (ecran === "attente-connecte") return <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
+  if (ecran === "expire") return <AccesExpire entreprise={entreprise} onLogout={seDeconnecter} />;
   if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
-

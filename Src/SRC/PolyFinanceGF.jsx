@@ -161,7 +161,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 
     setChargement(false);
     if (authError) {
-      setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Une erreur est survenue, réessayez.");
+      setErreur(authError.message);
       return;
     }
 
@@ -887,5 +887,3 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
-
-  

@@ -50,6 +50,10 @@ function statutEcheance(e) {
   return e.date_echeance < aujourdHui ? "En retard" : "À venir";
 }
 
+function fmtNombre(v) {
+  return new Intl.NumberFormat("fr-FR").format(Number(v) || 0);
+}
+
 function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -343,13 +347,16 @@ function AdminDashboard({ onLogout }) {
 // ============================================================
 // APPLICATION PRINCIPALE — côté entreprise
 // ============================================================
-function TableauDeBord({ clients, paiements, creances }) {
+function TableauDeBord({ clients, paiements, creances, ventes }) {
   const encaisse = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
   const enAttentePaiements = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
   const enAttenteCreances = creances.reduce((s, cr) => s + (cr.echeances || []).filter(e => !e.paye).reduce((s2, e) => s2 + Number(e.montant), 0), 0);
   const enAttente = enAttentePaiements + enAttenteCreances;
   const aujourdHui = new Date().toISOString().slice(0, 10);
-  const encaisseAujourdhui = paiements.filter(p => p.statut === "Payé" && p.date === aujourdHui).reduce((s, p) => s + Number(p.montant), 0);
+  const encaisseAujourdhuiPaiements = paiements.filter(p => p.statut === "Payé" && p.date === aujourdHui).reduce((s, p) => s + Number(p.montant), 0);
+  const ventesDuJour = ventes.filter(v => v.date === aujourdHui).reduce((s, v) => s + Number(v.montant), 0);
+  const encaisseAujourdhui = encaisseAujourdhuiPaiements + ventesDuJour;
+  const totalEncaisse = encaisse + ventes.reduce((s, v) => s + Number(v.montant), 0);
   const enRetard = clients.filter(c =>
     paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui) ||
     creances.some(cr => cr.client_id === c.id && (cr.echeances || []).some(e => statutEcheance(e) === "En retard"))
@@ -360,7 +367,7 @@ function TableauDeBord({ clients, paiements, creances }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
         {[
           ["Aujourd'hui", fmt(encaisseAujourdhui), C.green],
-          ["Ce mois", fmt(encaisse), C.green],
+          ["Ce mois", fmt(totalEncaisse), C.green],
           ["Reste à encaisser", fmt(enAttente), C.amber],
           ["Clients à relancer", enRetard, C.red],
         ].map(([label, val, color], i) => (
@@ -658,11 +665,134 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
   );
 }
 
+// ============================================================
+// VENTES RAPIDES (produits + compteur)
+// ============================================================
+function VentesView({ entreprise, produits, ventes, recharger }) {
+  const [gererProduits, setGererProduits] = useState(false);
+  const [nomProduit, setNomProduit] = useState("");
+  const [prixProduit, setPrixProduit] = useState("");
+  const [quantites, setQuantites] = useState({});
+
+  const ajouterProduit = async () => {
+    if (!nomProduit || !prixProduit) return;
+    await supabase.from("produits").insert({ entreprise_id: entreprise.id, nom: nomProduit, prix: Number(prixProduit) });
+    setNomProduit(""); setPrixProduit("");
+    recharger();
+  };
+
+  const supprimerProduit = async (id) => {
+    await supabase.from("produits").delete().eq("id", id);
+    recharger();
+  };
+
+  const getQuantite = (produitId) => quantites[produitId] ?? 1;
+  const setQuantite = (produitId, val) => setQuantites(q => ({ ...q, [produitId]: Math.max(1, Number(val) || 1) }));
+
+  const enregistrerVente = async (produit) => {
+    const quantite = getQuantite(produit.id);
+    await supabase.from("ventes").insert({
+      entreprise_id: entreprise.id,
+      produit_id: produit.id,
+      quantite,
+      montant: produit.prix * quantite,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    setQuantites(q => ({ ...q, [produit.id]: 1 }));
+    recharger();
+  };
+
+  const supprimerVente = async (id) => {
+    await supabase.from("ventes").delete().eq("id", id);
+    recharger();
+  };
+
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const ventesDuJour = ventes.filter(v => v.date === aujourdHui);
+  const totalDuJour = ventesDuJour.reduce((s, v) => s + Number(v.montant), 0);
+
+  if (gererProduits) {
+    return (
+      <div>
+        <div onClick={() => setGererProduits(false)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux ventes</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un produit</div>
+          <Input placeholder="Nom du produit (ex: Bière 33cl)" value={nomProduit} onChange={e => setNomProduit(e.target.value)} />
+          <Input type="number" placeholder="Prix unitaire (FCFA)" value={prixProduit} onChange={e => setPrixProduit(e.target.value)} />
+          <Btn onClick={ajouterProduit}>Ajouter</Btn>
+        </div>
+        {produits.map(p => (
+          <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{p.nom}</div>
+              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)}</div>
+            </div>
+            <span onClick={() => supprimerProduit(p.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
+        <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
+      </div>
+
+      {produits.length === 0 && (
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>
+          Aucun produit encore. <span onClick={() => setGererProduits(true)} style={{ color: C.teal, cursor: "pointer" }}>Ajoute ton premier produit</span>.
+        </div>
+      )}
+
+      {produits.map(p => (
+        <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{p.nom}</div>
+              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} / unité</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="number" min="1" value={getQuantite(p.id)} onChange={e => setQuantite(p.id, e.target.value)}
+              style={{ width: 60, padding: "10px 8px", textAlign: "center", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.9rem" }} />
+            <div style={{ flex: 1 }}>
+              <Btn onClick={() => enregistrerVente(p)}>+ Enregistrer ({fmt(p.prix * getQuantite(p.id))})</Btn>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {ventesDuJour.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Ventes du jour</div>
+          {ventesDuJour.map(v => {
+            const produit = produits.find(p => p.id === v.produit_id);
+            return (
+              <div key={v.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{produit?.nom || "Produit supprimé"} × {v.quantite}</div>
+                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(v.montant)}</div>
+                </div>
+                <span onClick={() => supprimerVente(v.id)} style={{ color: C.red, fontSize: "0.72rem", cursor: "pointer" }}>Annuler</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
   const [clients, setClients] = useState([]);
   const [paiements, setPaiements] = useState([]);
   const [creances, setCreances] = useState([]);
+  const [produits, setProduits] = useState([]);
+  const [ventes, setVentes] = useState([]);
 
   const recharger = async () => {
     const { data: c } = await supabase.from("clients").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
@@ -671,6 +801,10 @@ function EspaceEntreprise({ entreprise, onLogout }) {
     setClients(c || []);
     setPaiements(p || []);
     setCreances(cr || []);
+    const { data: prod } = await supabase.from("produits").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
+    const { data: vte } = await supabase.from("ventes").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
+    setProduits(prod || []);
+    setVentes(vte || []);
   };
 
   useEffect(() => { recharger(); }, []);
@@ -685,7 +819,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
         <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
       </div>
       <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
-        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"]].map(([id, label]) => (
+        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"]].map(([id, label]) => (
           <div key={id} onClick={() => setTab(id)}
             style={{ flex: 1, textAlign: "center", padding: "10px 4px", fontSize: "0.7rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
             {label}
@@ -693,10 +827,11 @@ function EspaceEntreprise({ entreprise, onLogout }) {
         ))}
       </div>
       <div style={{ padding: 16 }}>
-        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} />}
+        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} />}
         {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
         {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
         {tab === "creances" && <CreancesView entreprise={entreprise} clients={clients} creances={creances} recharger={recharger} />}
+        {tab === "ventes" && <VentesView entreprise={entreprise} produits={produits} ventes={ventes} recharger={recharger} />}
       </div>
     </div>
   );
@@ -752,3 +887,5 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
+
+  

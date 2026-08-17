@@ -161,7 +161,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 
     setChargement(false);
     if (authError) {
-      setErreur(authError.message);
+      setErreur(`${authError.name || "?"} | ${authError.message || "(vide)"} | status:${authError.status || "?"}`);
       return;
     }
 

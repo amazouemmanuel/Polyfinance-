@@ -6,7 +6,7 @@ const C = {
   teal: "#2AABAA", tealLight: "#3ECFCE", orange: "#F47B2A",
   bg: "#F5F8FA", white: "#FFFFFF", text: "#1a2a35",
   textMuted: "#6B8FA8", border: "rgba(27,77,110,0.12)",
-  red: "#ef4444", green: "#10b981", amber: "#f59e0b"
+  red: "#ef4444", green: "#10b981", amber: "#f59e0b", purple: "#8b5cf6"
 };
 
 const ADMIN_EMAIL = "amazouemmanuel274@gmail.com";
@@ -15,6 +15,8 @@ const PLANS = [
   { id: "gratuit", nom: "Gratuit", prix: "0 F", periode: "2 jours d'essai", jours: 2 },
   { id: "premium", nom: "Premium", prix: "8 000 F", periode: "/ 30 jours", jours: 30 },
 ];
+
+const MODES_PAIEMENT = ["Espèces", "Wave", "Orange Money", "Virement"];
 
 function fmt(v) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(Number(v) || 0)) + " F";
@@ -50,8 +52,22 @@ function statutEcheance(e) {
   return e.date_echeance < aujourdHui ? "En retard" : "À venir";
 }
 
-function fmtNombre(v) {
-  return new Intl.NumberFormat("fr-FR").format(Number(v) || 0);
+function debutSemaineISO() {
+  const d = new Date();
+  const jour = d.getDay();
+  const diff = jour === 0 ? -6 : 1 - jour;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function debutMoisISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function debutAnneeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-01-01`;
 }
 
 function Input({ label, ...props }) {
@@ -74,7 +90,7 @@ function Btn({ children, onClick, disabled, variant = "primary" }) {
 }
 
 function Badge({ text, color }) {
-  const map = { vert: C.green, rouge: C.red, ambre: C.amber, gris: C.textMuted };
+  const map = { vert: C.green, rouge: C.red, ambre: C.amber, gris: C.textMuted, violet: C.purple };
   const c = map[color] || C.textMuted;
   return <span style={{ fontSize: "0.68rem", fontWeight: 700, color: c, background: `${c}18`, padding: "3px 8px", borderRadius: 20 }}>{text}</span>;
 }
@@ -161,7 +177,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 
     setChargement(false);
     if (authError) {
-      setErreur(`${authError.name || "?"} | ${authError.message || "(vide)"} | status:${authError.status || "?"}`);
+      setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Une erreur est survenue, réessayez.");
       return;
     }
 
@@ -345,18 +361,56 @@ function AdminDashboard({ onLogout }) {
 }
 
 // ============================================================
-// APPLICATION PRINCIPALE — côté entreprise
+// TABLEAU DE BORD (enrichi)
 // ============================================================
-function TableauDeBord({ clients, paiements, creances, ventes }) {
-  const encaisse = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
+function TableauDeBord({ clients, paiements, creances, ventes, produits, depenses }) {
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const debutSem = debutSemaineISO();
+  const debutMois = debutMoisISO();
+  const debutAnnee = debutAnneeISO();
+
+  const revenuPeriode = (depuis) => {
+    const v = ventes.filter(x => x.date >= depuis).reduce((s, x) => s + Number(x.montant), 0);
+    const p = paiements.filter(x => x.statut === "Payé" && x.date >= depuis).reduce((s, x) => s + Number(x.montant), 0);
+    return v + p;
+  };
+  const nbVentesPeriode = (depuis) => ventes.filter(x => x.date >= depuis).length;
+
+  const caJour = revenuPeriode(aujourdHui);
+  const caSemaine = revenuPeriode(debutSem);
+  const caMois = revenuPeriode(debutMois);
+  const caAnnee = revenuPeriode(debutAnnee);
+
+  const depensesJour = depenses.filter(d => d.date === aujourdHui).reduce((s, d) => s + Number(d.montant), 0);
+  const depensesTotal = depenses.reduce((s, d) => s + Number(d.montant), 0);
   const enAttentePaiements = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
   const enAttenteCreances = creances.reduce((s, cr) => s + (cr.echeances || []).filter(e => !e.paye).reduce((s2, e) => s2 + Number(e.montant), 0), 0);
   const enAttente = enAttentePaiements + enAttenteCreances;
-  const aujourdHui = new Date().toISOString().slice(0, 10);
-  const encaisseAujourdhuiPaiements = paiements.filter(p => p.statut === "Payé" && p.date === aujourdHui).reduce((s, p) => s + Number(p.montant), 0);
-  const ventesDuJour = ventes.filter(v => v.date === aujourdHui).reduce((s, v) => s + Number(v.montant), 0);
-  const encaisseAujourdhui = encaisseAujourdhuiPaiements + ventesDuJour;
-  const totalEncaisse = encaisse + ventes.reduce((s, v) => s + Number(v.montant), 0);
+
+  const totalEncaisseGlobal = revenuPeriode("2000-01-01");
+  const solde = totalEncaisseGlobal - depensesTotal;
+
+  const beneficeJour = ventes.filter(v => v.date === aujourdHui).reduce((s, v) => {
+    const p = produits.find(pr => pr.id === v.produit_id);
+    const cout = (p?.prix_achat || 0) * v.quantite;
+    return s + (Number(v.montant) - cout);
+  }, 0);
+
+  const stockFaible = produits.filter(p => Number(p.stock_actuel) <= Number(p.seuil_alerte));
+
+  const produitsPlusVendus = Object.values(
+    ventes.reduce((acc, v) => {
+      if (!acc[v.produit_id]) acc[v.produit_id] = { produit_id: v.produit_id, quantite: 0 };
+      acc[v.produit_id].quantite += Number(v.quantite);
+      return acc;
+    }, {})
+  ).sort((a, b) => b.quantite - a.quantite).slice(0, 3);
+
+  const repartitionPaiements = MODES_PAIEMENT.map(mode => ({
+    mode,
+    montant: ventes.filter(v => v.mode === mode).reduce((s, v) => s + Number(v.montant), 0),
+  })).filter(r => r.montant > 0);
+
   const enRetard = clients.filter(c =>
     paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui) ||
     creances.some(cr => cr.client_id === c.id && (cr.echeances || []).some(e => statutEcheance(e) === "En retard"))
@@ -366,29 +420,97 @@ function TableauDeBord({ clients, paiements, creances, ventes }) {
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
         {[
-          ["Aujourd'hui", fmt(encaisseAujourdhui), C.green],
-          ["Ce mois", fmt(totalEncaisse), C.green],
+          ["CA aujourd'hui", fmt(caJour), C.green],
+          ["Dépenses du jour", fmt(depensesJour), C.red],
+          ["Bénéfice estimé (jour)", fmt(beneficeJour), beneficeJour >= 0 ? C.green : C.red],
+          ["Solde / trésorerie", fmt(solde), solde >= 0 ? C.navy : C.red],
+        ].map(([label, val, color], i) => (
+          <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ color: C.textMuted, fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+            <div style={{ fontWeight: 800, fontSize: "1.1rem", color }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {[
           ["Reste à encaisser", fmt(enAttente), C.amber],
           ["Clients à relancer", enRetard, C.red],
         ].map(([label, val, color], i) => (
           <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
             <div style={{ color: C.textMuted, fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontWeight: 800, fontSize: "1.15rem", color }}>{val}</div>
+            <div style={{ fontWeight: 800, fontSize: "1.1rem", color }}>{val}</div>
           </div>
         ))}
       </div>
+
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8, marginTop: 4 }}>Récapitulatif des ventes</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {[
+          ["Point du jour", caJour, nbVentesPeriode(aujourdHui), "#10b981"],
+          ["Point de la semaine", caSemaine, nbVentesPeriode(debutSem), "#2563eb"],
+          ["Point du mois", caMois, nbVentesPeriode(debutMois), "#f59e0b"],
+          ["Point de l'année", caAnnee, nbVentesPeriode(debutAnnee), "#8b5cf6"],
+        ].map(([label, montant, nb, color], i) => (
+          <div key={i} style={{ background: color, borderRadius: 12, padding: 14, color: C.white }}>
+            <div style={{ fontSize: "0.72rem", opacity: 0.9, marginBottom: 6 }}>{label}</div>
+            <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{fmt(montant)}</div>
+            <div style={{ fontSize: "0.7rem", opacity: 0.85, marginTop: 2 }}>{nb} vente{nb > 1 ? "s" : ""}</div>
+          </div>
+        ))}
+      </div>
+
+      {stockFaible.length > 0 && (
+        <div style={{ background: "#fef2f2", border: `1px solid ${C.red}40`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, color: C.red, fontSize: "0.82rem", marginBottom: 8 }}>⚠️ Stock faible</div>
+          {stockFaible.map(p => (
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", padding: "4px 0" }}>
+              <span>{p.nom}</span>
+              <span style={{ fontWeight: 700, color: C.red }}>{p.stock_actuel} restant(s)</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {produitsPlusVendus.length > 0 && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Produits les plus vendus</div>
+          {produitsPlusVendus.map((pv, i) => {
+            const produit = produits.find(p => p.id === pv.produit_id);
+            return (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.82rem" }}>
+                <span>{produit?.nom || "Produit supprimé"}</span>
+                <span style={{ fontWeight: 700 }}>{pv.quantite} unités</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {repartitionPaiements.length > 0 && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Répartition des paiements (ventes)</div>
+          {repartitionPaiements.map((r, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.82rem" }}>
+              <span>{r.mode}</span>
+              <span style={{ fontWeight: 700 }}>{fmt(r.montant)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Derniers paiements</div>
-        {paiements.slice(0, 5).map(p => {
-          const client = clients.find(c => c.id === p.client_id);
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Dernières ventes</div>
+        {ventes.slice(0, 5).map(v => {
+          const produit = produits.find(p => p.id === v.produit_id);
           return (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: "0.8rem" }}>
-              <span>{client?.nom || "Client supprimé"}</span>
-              <span style={{ fontWeight: 700 }}>{fmt(p.montant)}</span>
+            <div key={v.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: "0.8rem" }}>
+              <span>{produit?.nom || "Produit supprimé"} × {v.quantite}</span>
+              <span style={{ fontWeight: 700 }}>{fmt(v.montant)}</span>
             </div>
           );
         })}
-        {paiements.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucun paiement encore.</div>}
+        {ventes.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucune vente encore.</div>}
       </div>
     </div>
   );
@@ -666,18 +788,24 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 }
 
 // ============================================================
-// VENTES RAPIDES (produits + compteur)
+// VENTE / CAISSE (avec mode de paiement + décrément stock)
 // ============================================================
 function VentesView({ entreprise, produits, ventes, recharger }) {
   const [gererProduits, setGererProduits] = useState(false);
   const [nomProduit, setNomProduit] = useState("");
   const [prixProduit, setPrixProduit] = useState("");
+  const [prixAchatProduit, setPrixAchatProduit] = useState("");
+  const [seuilProduit, setSeuilProduit] = useState("5");
   const [quantites, setQuantites] = useState({});
+  const [modes, setModes] = useState({});
 
   const ajouterProduit = async () => {
     if (!nomProduit || !prixProduit) return;
-    await supabase.from("produits").insert({ entreprise_id: entreprise.id, nom: nomProduit, prix: Number(prixProduit) });
-    setNomProduit(""); setPrixProduit("");
+    await supabase.from("produits").insert({
+      entreprise_id: entreprise.id, nom: nomProduit, prix: Number(prixProduit),
+      prix_achat: Number(prixAchatProduit) || 0, seuil_alerte: Number(seuilProduit) || 5, stock_actuel: 0,
+    });
+    setNomProduit(""); setPrixProduit(""); setPrixAchatProduit(""); setSeuilProduit("5");
     recharger();
   };
 
@@ -688,15 +816,24 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 
   const getQuantite = (produitId) => quantites[produitId] ?? 1;
   const setQuantite = (produitId, val) => setQuantites(q => ({ ...q, [produitId]: Math.max(1, Number(val) || 1) }));
+  const getMode = (produitId) => modes[produitId] ?? "Espèces";
+  const setMode = (produitId, val) => setModes(m => ({ ...m, [produitId]: val }));
 
   const enregistrerVente = async (produit) => {
     const quantite = getQuantite(produit.id);
+    const mode = getMode(produit.id);
     await supabase.from("ventes").insert({
       entreprise_id: entreprise.id,
       produit_id: produit.id,
       quantite,
       montant: produit.prix * quantite,
+      mode,
       date: new Date().toISOString().slice(0, 10),
+    });
+    const nouveauStock = Math.max(0, Number(produit.stock_actuel) - quantite);
+    await supabase.from("produits").update({ stock_actuel: nouveauStock }).eq("id", produit.id);
+    await supabase.from("mouvements_stock").insert({
+      entreprise_id: entreprise.id, produit_id: produit.id, type: "sortie", quantite, motif: "Vente", date: new Date().toISOString().slice(0, 10),
     });
     setQuantites(q => ({ ...q, [produit.id]: 1 }));
     recharger();
@@ -718,14 +855,16 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un produit</div>
           <Input placeholder="Nom du produit (ex: Bière 33cl)" value={nomProduit} onChange={e => setNomProduit(e.target.value)} />
-          <Input type="number" placeholder="Prix unitaire (FCFA)" value={prixProduit} onChange={e => setPrixProduit(e.target.value)} />
+          <Input type="number" placeholder="Prix de vente (FCFA)" value={prixProduit} onChange={e => setPrixProduit(e.target.value)} />
+          <Input type="number" placeholder="Prix d'achat (FCFA, optionnel)" value={prixAchatProduit} onChange={e => setPrixAchatProduit(e.target.value)} />
+          <Input type="number" label="Seuil d'alerte stock" value={seuilProduit} onChange={e => setSeuilProduit(e.target.value)} />
           <Btn onClick={ajouterProduit}>Ajouter</Btn>
         </div>
         {produits.map(p => (
           <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{p.nom}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)}</div>
+              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} · Stock: {p.stock_actuel}</div>
             </div>
             <span onClick={() => supprimerProduit(p.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
           </div>
@@ -752,16 +891,18 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{p.nom}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} / unité</div>
+              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} / unité · Stock: {p.stock_actuel}</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <input type="number" min="1" value={getQuantite(p.id)} onChange={e => setQuantite(p.id, e.target.value)}
               style={{ width: 60, padding: "10px 8px", textAlign: "center", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.9rem" }} />
-            <div style={{ flex: 1 }}>
-              <Btn onClick={() => enregistrerVente(p)}>+ Enregistrer ({fmt(p.prix * getQuantite(p.id))})</Btn>
-            </div>
+            <select value={getMode(p.id)} onChange={e => setMode(p.id, e.target.value)}
+              style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.85rem" }}>
+              {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
+          <Btn onClick={() => enregistrerVente(p)}>+ Enregistrer ({fmt(p.prix * getQuantite(p.id))})</Btn>
         </div>
       ))}
 
@@ -774,7 +915,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
               <div key={v.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{produit?.nom || "Produit supprimé"} × {v.quantite}</div>
-                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(v.montant)}</div>
+                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(v.montant)} · {v.mode}</div>
                 </div>
                 <span onClick={() => supprimerVente(v.id)} style={{ color: C.red, fontSize: "0.72rem", cursor: "pointer" }}>Annuler</span>
               </div>
@@ -786,6 +927,140 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
   );
 }
 
+// ============================================================
+// STOCK (entrées, sorties, stock restant)
+// ============================================================
+function StockView({ entreprise, produits, recharger }) {
+  const [ajoutOuvert, setAjoutOuvert] = useState(false);
+  const [produitId, setProduitId] = useState("");
+  const [quantite, setQuantite] = useState("");
+  const [motif, setMotif] = useState("");
+  const [erreur, setErreur] = useState("");
+
+  const ajouterStock = async () => {
+    setErreur("");
+    if (!produitId || !quantite) { setErreur("Choisis un produit et une quantité."); return; }
+    const produit = produits.find(p => p.id === produitId);
+    if (!produit) return;
+
+    await supabase.from("mouvements_stock").insert({
+      entreprise_id: entreprise.id, produit_id: produitId, type: "entree",
+      quantite: Number(quantite), motif: motif || "Approvisionnement", date: new Date().toISOString().slice(0, 10),
+    });
+    await supabase.from("produits").update({ stock_actuel: Number(produit.stock_actuel) + Number(quantite) }).eq("id", produitId);
+
+    setProduitId(""); setQuantite(""); setMotif(""); setAjoutOuvert(false);
+    recharger();
+  };
+
+  const modifierProduit = async (id, champ, valeur) => {
+    await supabase.from("produits").update({ [champ]: Number(valeur) || 0 }).eq("id", id);
+    recharger();
+  };
+
+  return (
+    <div>
+      {!ajoutOuvert && <Btn onClick={() => setAjoutOuvert(true)}>+ Ajouter du stock</Btn>}
+      {ajoutOuvert && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Entrée de stock</div>
+          <select value={produitId} onChange={e => setProduitId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+            <option value="">— Choisir un produit —</option>
+            {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+          </select>
+          <Input type="number" placeholder="Quantité reçue" value={quantite} onChange={e => setQuantite(e.target.value)} />
+          <Input placeholder="Motif (ex: Livraison fournisseur)" value={motif} onChange={e => setMotif(e.target.value)} />
+          {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreur}</div>}
+          <Btn onClick={ajouterStock}>Enregistrer l'entrée</Btn>
+          <div onClick={() => setAjoutOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: "0.78rem", color: C.textMuted, cursor: "pointer" }}>Annuler</div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Stock actuel</div>
+        {produits.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.85rem" }}>Aucun produit — ajoute-en depuis l'onglet Ventes.</div>}
+        {produits.map(p => {
+          const faible = Number(p.stock_actuel) <= Number(p.seuil_alerte);
+          return (
+            <div key={p.id} style={{ background: C.white, border: `1px solid ${faible ? C.red : C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{p.nom}</div>
+                <div style={{ fontWeight: 800, fontSize: "1rem", color: faible ? C.red : C.green }}>{p.stock_actuel}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Prix d'achat</label>
+                  <input type="number" defaultValue={p.prix_achat} onBlur={e => modifierProduit(p.id, "prix_achat", e.target.value)}
+                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Seuil d'alerte</label>
+                  <input type="number" defaultValue={p.seuil_alerte} onBlur={e => modifierProduit(p.id, "seuil_alerte", e.target.value)}
+                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DÉPENSES
+// ============================================================
+function DepensesView({ entreprise, depenses, recharger }) {
+  const [categorie, setCategorie] = useState("");
+  const [description, setDescription] = useState("");
+  const [montant, setMontant] = useState("");
+
+  const ajouter = async () => {
+    if (!categorie || !montant) return;
+    await supabase.from("depenses").insert({
+      entreprise_id: entreprise.id, categorie, description, montant: Number(montant), date: new Date().toISOString().slice(0, 10),
+    });
+    setCategorie(""); setDescription(""); setMontant("");
+    recharger();
+  };
+
+  const supprimer = async (id) => {
+    await supabase.from("depenses").delete().eq("id", id);
+    recharger();
+  };
+
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const totalJour = depenses.filter(d => d.date === aujourdHui).reduce((s, d) => s + Number(d.montant), 0);
+
+  return (
+    <div>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 14 }}>Dépenses aujourd'hui : <span style={{ color: C.red }}>{fmt(totalJour)}</span></div>
+
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer une dépense</div>
+        <Input placeholder="Catégorie (ex: Transport, Loyer, Achat marchandise)" value={categorie} onChange={e => setCategorie(e.target.value)} />
+        <Input placeholder="Description (optionnel)" value={description} onChange={e => setDescription(e.target.value)} />
+        <Input type="number" placeholder="Montant (FCFA)" value={montant} onChange={e => setMontant(e.target.value)} />
+        <Btn onClick={ajouter}>Enregistrer</Btn>
+      </div>
+
+      {depenses.length === 0 && <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>Aucune dépense enregistrée.</div>}
+      {depenses.map(d => (
+        <div key={d.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{d.categorie}</div>
+            <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{d.description ? `${d.description} · ` : ""}{d.date}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontWeight: 700, color: C.red }}>{fmt(d.montant)}</div>
+            <span onClick={() => supprimer(d.id)} style={{ color: C.red, fontSize: "0.7rem", cursor: "pointer" }}>Supprimer</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
   const [clients, setClients] = useState([]);
@@ -793,6 +1068,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
   const [creances, setCreances] = useState([]);
   const [produits, setProduits] = useState([]);
   const [ventes, setVentes] = useState([]);
+  const [depenses, setDepenses] = useState([]);
 
   const recharger = async () => {
     const { data: c } = await supabase.from("clients").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
@@ -803,8 +1079,10 @@ function EspaceEntreprise({ entreprise, onLogout }) {
     setCreances(cr || []);
     const { data: prod } = await supabase.from("produits").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
     const { data: vte } = await supabase.from("ventes").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
+    const { data: dep } = await supabase.from("depenses").select("*").eq("entreprise_id", entreprise.id).order("date", { ascending: false });
     setProduits(prod || []);
     setVentes(vte || []);
+    setDepenses(dep || []);
   };
 
   useEffect(() => { recharger(); }, []);
@@ -819,19 +1097,21 @@ function EspaceEntreprise({ entreprise, onLogout }) {
         <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
       </div>
       <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
-        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"]].map(([id, label]) => (
+        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"], ["stock", "Stock"], ["depenses", "Dépenses"]].map(([id, label]) => (
           <div key={id} onClick={() => setTab(id)}
-            style={{ flex: 1, textAlign: "center", padding: "10px 4px", fontSize: "0.7rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
+            style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 12px", fontSize: "0.7rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
             {label}
           </div>
         ))}
       </div>
       <div style={{ padding: 16 }}>
-        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} />}
+        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
         {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
         {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
         {tab === "creances" && <CreancesView entreprise={entreprise} clients={clients} creances={creances} recharger={recharger} />}
         {tab === "ventes" && <VentesView entreprise={entreprise} produits={produits} ventes={ventes} recharger={recharger} />}
+        {tab === "stock" && <StockView entreprise={entreprise} produits={produits} recharger={recharger} />}
+        {tab === "depenses" && <DepensesView entreprise={entreprise} depenses={depenses} recharger={recharger} />}
       </div>
     </div>
   );

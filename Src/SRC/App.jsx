@@ -210,9 +210,6 @@ export default function App() {
 
   const currentMessages = chats[activeAgent] || [];
 
-  // Vérifie une seule fois, au chargement de l'app, si une session existe déjà
-  // (par ex. juste après avoir cliqué sur le lien de confirmation d'email).
-  // Si oui, on saute l'écran de choix et on va directement dans l'espace GF.
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setPage("gf");
@@ -250,21 +247,18 @@ export default function App() {
   const toolComposants = { composes: Composes, epargne: Epargne, brvm: BRVM, credit: Credit, objectif: Objectif };
   const ActiveTool = toolComposants[activeTool];
 
-  // Écran neutre pendant la vérification de session (évite un clignotement)
   if (!verifieSession) {
     return <div style={{ minHeight: "100vh", background: C.navyDark }} />;
   }
 
-  // ÉCRAN D'ACCUEIL — avant tout choix
   if (page === "landing") {
     return <Landing onChoisirIA={() => setPage("home")} onChoisirGF={() => setPage("gf")} />;
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif", maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: "column" }}>
       <style>{`@keyframes db{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}*{box-sizing:border-box}body{margin:0}`}</style>
 
-      {/* HEADER — masqué pour l'espace GF, qui a son propre en-tête */}
       {page !== "gf" && (
         <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px 10px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -284,7 +278,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE ACCUEIL (IA) */}
       {page === "home" && (
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
           <div style={{ textAlign: "center", padding: "24px 0 20px" }}>
@@ -310,7 +303,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE CHAT */}
       {page === "chat" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
@@ -339,7 +331,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE AGENTS */}
       {page === "agents" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
@@ -382,7 +373,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE OUTILS */}
       {page === "outils" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
@@ -402,7 +392,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE GF */}
       {page === "gf" && (
         <div style={{ flex: 1, overflowY: "auto" }}>
           <div onClick={() => setPage("landing")} style={{ background: C.navyDark, color: "rgba(255,255,255,0.6)", fontSize: "0.72rem", padding: "8px 16px", cursor: "pointer" }}>
@@ -412,7 +401,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PAGE FONDATEUR */}
       {page === "fondateur" && (
         <div style={{ flex: 1, overflowY: "auto" }}>
           <Fondateur />
@@ -422,5 +410,3 @@ export default function App() {
     </div>
   );
 }
-
-            

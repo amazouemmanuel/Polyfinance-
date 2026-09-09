@@ -96,6 +96,53 @@ function Badge({ text, color }) {
 }
 
 // ============================================================
+// CALCULATRICE (pour aider le caissier — rendu de monnaie, etc.)
+// ============================================================
+function Calculatrice() {
+  const [expression, setExpression] = useState("");
+  const [resultat, setResultat] = useState(null);
+
+  const appuyer = (val) => {
+    if (val === "C") { setExpression(""); setResultat(null); return; }
+    if (val === "⌫") { setExpression(e => e.slice(0, -1)); setResultat(null); return; }
+    if (val === "=") {
+      const propre = expression.replace(/×/g, "*").replace(/÷/g, "/");
+      if (!/^[0-9+\-*/. ]*$/.test(propre) || !propre.trim()) { setResultat("Erreur"); return; }
+      try {
+        const r = Function(`"use strict"; return (${propre})`)();
+        setResultat(Number.isFinite(r) ? r : "Erreur");
+      } catch { setResultat("Erreur"); }
+      return;
+    }
+    setResultat(null);
+    setExpression(e => e + val);
+  };
+
+  const touches = ["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "-", "C", "0", "=", "+"];
+  const speciales = ["C", "=", "+", "-", "×", "÷"];
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>🧮 Calculatrice</div>
+        <span onClick={() => appuyer("⌫")} style={{ color: C.textMuted, fontSize: "0.75rem", cursor: "pointer" }}>⌫ Effacer</span>
+      </div>
+      <div style={{ background: C.bg, borderRadius: 8, padding: 12, textAlign: "right", fontSize: "1.15rem", fontWeight: 700, marginBottom: 10, minHeight: 30, overflowX: "auto", whiteSpace: "nowrap" }}>
+        {resultat !== null ? (typeof resultat === "number" ? resultat.toLocaleString("fr-FR") : resultat) : (expression || "0")}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+        {touches.map(k => (
+          <button key={k} onClick={() => appuyer(k)}
+            style={{ padding: 14, borderRadius: 8, border: `1px solid ${C.border}`, background: speciales.includes(k) ? C.teal : C.bg, color: speciales.includes(k) ? C.white : C.text, fontWeight: 700, fontSize: "1rem", cursor: "pointer" }}>
+            {k}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // ÉCRAN : Connexion
 // ============================================================
 function Connexion({ onGoSignup, onLoggedIn }) {
@@ -115,7 +162,7 @@ function Connexion({ onGoSignup, onLoggedIn }) {
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>PolyFinance <span style={{ color: C.teal }}>GF</span></div>
         <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Connexion à votre espace entreprise</div>
@@ -186,7 +233,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 
   if (etape === 1) {
     return (
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Créer votre compte entreprise</div>
           <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 1 sur 2</div>
@@ -211,7 +258,7 @@ function Inscription({ onGoLogin, onInscrit }) {
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Choisissez votre abonnement</div>
         <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 2 sur 2 — {nomEntreprise}</div>
@@ -245,7 +292,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
-    <div style={{ padding: 24, textAlign: "center" }}>
+    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
       <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>📧</div>
       <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Vérifiez votre email</div>
       <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
@@ -264,7 +311,7 @@ function EnAttente({ onGoLogin }) {
 // ============================================================
 function EnAttenteConnecte({ entreprise, onLogout }) {
   return (
-    <div style={{ padding: 24, textAlign: "center" }}>
+    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
       <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏳</div>
       <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
         Bienvenue {entreprise.nom}, votre paiement est en cours de vérification
@@ -284,7 +331,7 @@ function EnAttenteConnecte({ entreprise, onLogout }) {
 // ============================================================
 function AccesExpire({ entreprise, onLogout }) {
   return (
-    <div style={{ padding: 24, textAlign: "center" }}>
+    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
       <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏰</div>
       <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
         Votre accès a expiré
@@ -324,7 +371,7 @@ function AdminDashboard({ onLogout }) {
   const couleurStatut = (statut) => statut === "Premium" ? "vert" : statut === "En attente" ? "ambre" : "gris";
 
   return (
-    <div>
+    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>Espace Administrateur</div>
@@ -361,7 +408,7 @@ function AdminDashboard({ onLogout }) {
 }
 
 // ============================================================
-// TABLEAU DE BORD (enrichi)
+// TABLEAU DE BORD (enrichi, avec grille responsive)
 // ============================================================
 function TableauDeBord({ clients, paiements, creances, ventes, produits, depenses }) {
   const aujourdHui = new Date().toISOString().slice(0, 10);
@@ -418,7 +465,16 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+      <style>{`
+        .gf-grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .gf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        @media (min-width: 820px) {
+          .gf-grid4 { grid-template-columns: repeat(4, 1fr); }
+          .gf-grid2 { grid-template-columns: repeat(2, 1fr); max-width: 500px; }
+        }
+      `}</style>
+
+      <div className="gf-grid4">
         {[
           ["CA aujourd'hui", fmt(caJour), C.green],
           ["Dépenses du jour", fmt(depensesJour), C.red],
@@ -432,7 +488,7 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+      <div className="gf-grid2">
         {[
           ["Reste à encaisser", fmt(enAttente), C.amber],
           ["Clients à relancer", enRetard, C.red],
@@ -445,7 +501,7 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
       </div>
 
       <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8, marginTop: 4 }}>Récapitulatif des ventes</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+      <div className="gf-grid4">
         {[
           ["Point du jour", caJour, nbVentesPeriode(aujourdHui), "#10b981"],
           ["Point de la semaine", caSemaine, nbVentesPeriode(debutSem), "#2563eb"],
@@ -548,7 +604,7 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
     const totalPaye = historiquePaiements.filter(p => p.statut === "Payé").reduce((s, p) => s + Number(p.montant), 0);
 
     return (
-      <div>
+      <div style={{ maxWidth: 500 }}>
         <div onClick={() => setClientOuvert(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux clients</div>
 
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
@@ -592,7 +648,7 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 700 }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un client</div>
         <Input placeholder="Nom du client" value={nom} onChange={e => setNom(e.target.value)} />
@@ -628,7 +684,7 @@ function PaiementsView({ entreprise, clients, paiements, recharger }) {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: 700 }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer un paiement</div>
         <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
@@ -713,7 +769,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
     const reste = cr.montant_total - paye;
 
     return (
-      <div>
+      <div style={{ maxWidth: 500 }}>
         <div onClick={() => setCreanceOuverte(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux créances</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem", marginBottom: 4 }}>{client?.nom || "Client supprimé"}</div>
@@ -741,7 +797,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 700 }}>
       {!formOuvert && (
         <Btn onClick={() => setFormOuvert(true)}>+ Nouvelle créance échelonnée</Btn>
       )}
@@ -788,7 +844,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 }
 
 // ============================================================
-// VENTE / CAISSE (avec mode de paiement + décrément stock)
+// VENTE / CAISSE — ticket/panier + calculatrice
 // ============================================================
 function VentesView({ entreprise, produits, ventes, recharger }) {
   const [gererProduits, setGererProduits] = useState(false);
@@ -796,8 +852,10 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
   const [prixProduit, setPrixProduit] = useState("");
   const [prixAchatProduit, setPrixAchatProduit] = useState("");
   const [seuilProduit, setSeuilProduit] = useState("5");
-  const [quantites, setQuantites] = useState({});
-  const [modes, setModes] = useState({});
+  const [panier, setPanier] = useState([]);
+  const [mode, setMode] = useState("Espèces");
+  const [calculatriceOuverte, setCalculatriceOuverte] = useState(false);
+  const [enregistrement, setEnregistrement] = useState(false);
 
   const ajouterProduit = async () => {
     if (!nomProduit || !prixProduit) return;
@@ -814,28 +872,48 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
     recharger();
   };
 
-  const getQuantite = (produitId) => quantites[produitId] ?? 1;
-  const setQuantite = (produitId, val) => setQuantites(q => ({ ...q, [produitId]: Math.max(1, Number(val) || 1) }));
-  const getMode = (produitId) => modes[produitId] ?? "Espèces";
-  const setMode = (produitId, val) => setModes(m => ({ ...m, [produitId]: val }));
+  const ajouterAuPanier = (produit) => {
+    setPanier(p => {
+      const existant = p.find(l => l.produit_id === produit.id);
+      if (existant) return p.map(l => l.produit_id === produit.id ? { ...l, quantite: l.quantite + 1 } : l);
+      return [...p, { produit_id: produit.id, nom: produit.nom, prix: produit.prix, quantite: 1 }];
+    });
+  };
 
-  const enregistrerVente = async (produit) => {
-    const quantite = getQuantite(produit.id);
-    const mode = getMode(produit.id);
-    await supabase.from("ventes").insert({
-      entreprise_id: entreprise.id,
-      produit_id: produit.id,
-      quantite,
-      montant: produit.prix * quantite,
-      mode,
-      date: new Date().toISOString().slice(0, 10),
-    });
-    const nouveauStock = Math.max(0, Number(produit.stock_actuel) - quantite);
-    await supabase.from("produits").update({ stock_actuel: nouveauStock }).eq("id", produit.id);
-    await supabase.from("mouvements_stock").insert({
-      entreprise_id: entreprise.id, produit_id: produit.id, type: "sortie", quantite, motif: "Vente", date: new Date().toISOString().slice(0, 10),
-    });
-    setQuantites(q => ({ ...q, [produit.id]: 1 }));
+  const changerQuantite = (produit_id, delta) => {
+    setPanier(p => p
+      .map(l => l.produit_id === produit_id ? { ...l, quantite: l.quantite + delta } : l)
+      .filter(l => l.quantite > 0)
+    );
+  };
+
+  const retirerDuPanier = (produit_id) => setPanier(p => p.filter(l => l.produit_id !== produit_id));
+
+  const totalPanier = panier.reduce((s, l) => s + l.prix * l.quantite, 0);
+
+  const validerTicket = async () => {
+    if (panier.length === 0) return;
+    setEnregistrement(true);
+    const ticketId = crypto.randomUUID();
+    const aujourdHui = new Date().toISOString().slice(0, 10);
+
+    for (const ligne of panier) {
+      await supabase.from("ventes").insert({
+        entreprise_id: entreprise.id, produit_id: ligne.produit_id, quantite: ligne.quantite,
+        montant: ligne.prix * ligne.quantite, mode, date: aujourdHui, ticket_id: ticketId,
+      });
+      const produit = produits.find(p => p.id === ligne.produit_id);
+      if (produit) {
+        const nouveauStock = Math.max(0, Number(produit.stock_actuel) - ligne.quantite);
+        await supabase.from("produits").update({ stock_actuel: nouveauStock }).eq("id", produit.id);
+        await supabase.from("mouvements_stock").insert({
+          entreprise_id: entreprise.id, produit_id: produit.id, type: "sortie", quantite: ligne.quantite, motif: "Vente", date: aujourdHui,
+        });
+      }
+    }
+
+    setPanier([]);
+    setEnregistrement(false);
     recharger();
   };
 
@@ -850,8 +928,8 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 
   if (gererProduits) {
     return (
-      <div>
-        <div onClick={() => setGererProduits(false)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux ventes</div>
+      <div style={{ maxWidth: 500 }}>
+        <div onClick={() => setGererProduits(false)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour à la caisse</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un produit</div>
           <Input placeholder="Nom du produit (ex: Bière 33cl)" value={nomProduit} onChange={e => setNomProduit(e.target.value)} />
@@ -875,10 +953,29 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 
   return (
     <div>
+      <style>{`
+        .gf-caisse { display: block; }
+        @media (min-width: 900px) {
+          .gf-caisse { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+        }
+        .gf-produits-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        @media (min-width: 600px) {
+          .gf-produits-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (min-width: 900px) {
+          .gf-produits-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+      `}</style>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
-        <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
+        <div style={{ display: "flex", gap: 12 }}>
+          <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>🧮 Calculatrice</span>
+          <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
+        </div>
       </div>
+
+      {calculatriceOuverte && <Calculatrice />}
 
       {produits.length === 0 && (
         <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>
@@ -886,28 +983,63 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
         </div>
       )}
 
-      {produits.map(p => (
-        <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{p.nom}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} / unité · Stock: {p.stock_actuel}</div>
-            </div>
+      {produits.length > 0 && (
+        <div className="gf-caisse">
+          <div className="gf-produits-grid">
+            {produits.map(p => {
+              const rupture = Number(p.stock_actuel) <= 0;
+              return (
+                <button key={p.id} onClick={() => ajouterAuPanier(p)}
+                  style={{ position: "relative", textAlign: "left", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, cursor: "pointer" }}>
+                  {rupture && (
+                    <span style={{ position: "absolute", top: 8, right: 8, fontSize: "0.6rem", fontWeight: 700, color: C.red, background: `${C.red}18`, padding: "2px 6px", borderRadius: 8 }}>Rupture</span>
+                  )}
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.text, marginBottom: 4 }}>{p.nom}</div>
+                  <div style={{ color: C.teal, fontWeight: 800, fontSize: "0.9rem" }}>{fmt(p.prix)}</div>
+                  <div style={{ color: C.textMuted, fontSize: "0.68rem", marginTop: 2 }}>Stock: {p.stock_actuel}</div>
+                </button>
+              );
+            })}
           </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input type="number" min="1" value={getQuantite(p.id)} onChange={e => setQuantite(p.id, e.target.value)}
-              style={{ width: 60, padding: "10px 8px", textAlign: "center", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.9rem" }} />
-            <select value={getMode(p.id)} onChange={e => setMode(p.id, e.target.value)}
-              style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.85rem" }}>
-              {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginTop: 16 }}>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 10 }}>🧾 Ticket en cours</div>
+            {panier.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.82rem", textAlign: "center", padding: "10px 0" }}>Appuie sur un produit pour l'ajouter</div>}
+            {panier.map(l => (
+              <div key={l.produit_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{l.nom}</div>
+                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(l.prix)} × {l.quantite}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => changerQuantite(l.produit_id, -1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>-</button>
+                  <span style={{ fontWeight: 700, minWidth: 16, textAlign: "center" }}>{l.quantite}</span>
+                  <button onClick={() => changerQuantite(l.produit_id, 1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>+</button>
+                  <span onClick={() => retirerDuPanier(l.produit_id)} style={{ color: C.red, fontSize: "0.7rem", cursor: "pointer", marginLeft: 4 }}>✕</span>
+                </div>
+              </div>
+            ))}
+
+            {panier.length > 0 && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", fontWeight: 800, fontSize: "1rem" }}>
+                  <span>Total</span>
+                  <span style={{ color: C.teal }}>{fmt(totalPanier)}</span>
+                </div>
+                <select value={mode} onChange={e => setMode(e.target.value)}
+                  style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+                  {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <Btn onClick={validerTicket} disabled={enregistrement}>{enregistrement ? "Enregistrement..." : `Payer ${fmt(totalPanier)}`}</Btn>
+                <div onClick={() => setPanier([])} style={{ textAlign: "center", marginTop: 10, fontSize: "0.75rem", color: C.textMuted, cursor: "pointer" }}>Vider le ticket</div>
+              </>
+            )}
           </div>
-          <Btn onClick={() => enregistrerVente(p)}>+ Enregistrer ({fmt(p.prix * getQuantite(p.id))})</Btn>
         </div>
-      ))}
+      )}
 
       {ventesDuJour.length > 0 && (
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 20, maxWidth: 700 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Ventes du jour</div>
           {ventesDuJour.map(v => {
             const produit = produits.find(p => p.id === v.produit_id);
@@ -959,7 +1091,7 @@ function StockView({ entreprise, produits, recharger }) {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: 700 }}>
       {!ajoutOuvert && <Btn onClick={() => setAjoutOuvert(true)}>+ Ajouter du stock</Btn>}
       {ajoutOuvert && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
@@ -1033,7 +1165,7 @@ function DepensesView({ entreprise, depenses, recharger }) {
   const totalJour = depenses.filter(d => d.date === aujourdHui).reduce((s, d) => s + Number(d.montant), 0);
 
   return (
-    <div>
+    <div style={{ maxWidth: 700 }}>
       <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 14 }}>Dépenses aujourd'hui : <span style={{ color: C.red }}>{fmt(totalJour)}</span></div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
@@ -1088,7 +1220,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
   useEffect(() => { recharger(); }, []);
 
   return (
-    <div>
+    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entreprise.nom}</div>
@@ -1099,7 +1231,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
       <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
         {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"], ["stock", "Stock"], ["depenses", "Dépenses"]].map(([id, label]) => (
           <div key={id} onClick={() => setTab(id)}
-            style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 12px", fontSize: "0.7rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
+            style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 14px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
             {label}
           </div>
         ))}
@@ -1167,3 +1299,5 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
+
+

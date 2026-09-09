@@ -18,6 +18,7 @@ const PLANS = [
 
 const MODES_PAIEMENT = ["Espèces", "Wave", "Orange Money", "Virement"];
 
+// Fonctions utilitaires inchangées...
 function fmt(v) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(Number(v) || 0)) + " F";
 }
@@ -70,11 +71,12 @@ function debutAnneeISO() {
   return `${d.getFullYear()}-01-01`;
 }
 
+// Composants de base
 function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
       {label && <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>}
-      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none", transition: "border 0.2s" }} />
     </div>
   );
 }
@@ -83,7 +85,7 @@ function Btn({ children, onClick, disabled, variant = "primary" }) {
   const bg = variant === "primary" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : "transparent";
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 11, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" }}>
+      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 11, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", transition: "opacity 0.2s" }}>
       {children}
     </button>
   );
@@ -96,7 +98,7 @@ function Badge({ text, color }) {
 }
 
 // ============================================================
-// CALCULATRICE (pour aider le caissier — rendu de monnaie, etc.)
+// CALCULATRICE
 // ============================================================
 function Calculatrice() {
   const [expression, setExpression] = useState("");
@@ -179,7 +181,7 @@ function Connexion({ onGoSignup, onLoggedIn }) {
 }
 
 // ============================================================
-// ÉCRAN : Inscription (infos + choix du plan)
+// ÉCRAN : Inscription
 // ============================================================
 function Inscription({ onGoLogin, onInscrit }) {
   const [etape, setEtape] = useState(1);
@@ -206,7 +208,7 @@ function Inscription({ onGoLogin, onInscrit }) {
     const statutInitial = plan === "gratuit" ? "Gratuit" : "En attente";
     const dateExpiration = plan === "gratuit" ? ajouterJours(new Date().toISOString().slice(0, 10), planChoisi.jours) : "";
 
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password: motDePasse,
       options: {
@@ -222,12 +224,32 @@ function Inscription({ onGoLogin, onInscrit }) {
       },
     });
 
-    setChargement(false);
     if (authError) {
+      setChargement(false);
       setErreur(authError.message.includes("already registered") ? "Cet email a déjà un compte." : "Une erreur est survenue, réessayez.");
       return;
     }
 
+    if (authData.user) {
+      const { error: insertError } = await supabase.from("entreprises").insert({
+        auth_user_id: authData.user.id,
+        nom: nomEntreprise,
+        ville,
+        responsable,
+        telephone,
+        email,
+        plan,
+        statut: statutInitial,
+        date_expiration: dateExpiration || null,
+      });
+      if (insertError) {
+        setChargement(false);
+        setErreur("Erreur lors de la création de l'entreprise : " + insertError.message);
+        return;
+      }
+    }
+
+    setChargement(false);
     onInscrit(plan);
   };
 
@@ -288,7 +310,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 }
 
 // ============================================================
-// ÉCRAN : Attente de vérification (juste après inscription)
+// ÉCRAN : Attente de vérification
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
@@ -327,7 +349,7 @@ function EnAttenteConnecte({ entreprise, onLogout }) {
 }
 
 // ============================================================
-// ÉCRAN : Accès expiré (Gratuit ou Premium dépassé)
+// ÉCRAN : Accès expiré
 // ============================================================
 function AccesExpire({ entreprise, onLogout }) {
   return (
@@ -372,7 +394,7 @@ function AdminDashboard({ onLogout }) {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="gf-header" style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
         <div>
           <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>Espace Administrateur</div>
           <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>PolyFinance GF</div>
@@ -386,14 +408,14 @@ function AdminDashboard({ onLogout }) {
         )}
         {entreprises.map(e => (
           <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.text }}>{e.nom}</div>
                 <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{e.responsable} · {e.telephone}</div>
               </div>
               <Badge text={e.statut} color={couleurStatut(e.statut)} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0, flexWrap: "wrap" }}>
               <span>Plan : {e.plan}</span>
               <span>{e.date_expiration ? `Expire le ${e.date_expiration}` : "Pas d'expiration"}</span>
             </div>
@@ -408,7 +430,7 @@ function AdminDashboard({ onLogout }) {
 }
 
 // ============================================================
-// TABLEAU DE BORD (enrichi, avec grille responsive)
+// TABLEAU DE BORD
 // ============================================================
 function TableauDeBord({ clients, paiements, creances, ventes, produits, depenses }) {
   const aujourdHui = new Date().toISOString().slice(0, 10);
@@ -465,15 +487,6 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
 
   return (
     <div>
-      <style>{`
-        .gf-grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        .gf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        @media (min-width: 820px) {
-          .gf-grid4 { grid-template-columns: repeat(4, 1fr); }
-          .gf-grid2 { grid-template-columns: repeat(2, 1fr); max-width: 500px; }
-        }
-      `}</style>
-
       <div className="gf-grid4">
         {[
           ["CA aujourd'hui", fmt(caJour), C.green],
@@ -573,7 +586,7 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
 }
 
 // ============================================================
-// CLIENTS (avec détail + historique en cliquant sur le nom)
+// CLIENTS
 // ============================================================
 function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
   const [nom, setNom] = useState("");
@@ -844,7 +857,87 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 }
 
 // ============================================================
-// VENTE / CAISSE — ticket/panier + calculatrice
+// TICKET FACTURE
+// ============================================================
+function TicketFacture({ entreprise, lignes, total, mode, date, heure, numero, typeCommande, estApercu, onValider, onRetour, onNouvelleVente }) {
+  const nomRestaurant = entreprise?.nom || "RESTAURANT";
+  const employe = entreprise?.responsable || "Propriétaire";
+  const pdv = "PDV3 NEW";
+
+  return (
+    <div style={{ maxWidth: 320, margin: "0 auto", fontFamily: "'Courier New', monospace", fontSize: "0.8rem", background: "#fff", padding: 10, border: "1px dashed #ccc" }}>
+      <div style={{ textAlign: "center", fontWeight: 700, fontSize: "1.1rem", letterSpacing: 1 }}>
+        {nomRestaurant}
+      </div>
+      <div style={{ textAlign: "center", fontSize: "0.75rem", marginTop: 2 }}>
+        Employé : {employe}
+      </div>
+      <div style={{ textAlign: "center", fontSize: "0.75rem", marginBottom: 8 }}>
+        PDV : {pdv}
+      </div>
+      <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "4px 0", textAlign: "center", fontWeight: 700, marginBottom: 8 }}>
+        {typeCommande}
+      </div>
+
+      {lignes.map((l, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+          <span style={{ flex: 1 }}>{l.nom}</span>
+          <span style={{ minWidth: 60, textAlign: "right" }}>{l.prix} CFA</span>
+        </div>
+      ))}
+
+      {lignes.map((l, i) => (
+        <div key={`qty-${i}`} style={{ display: "flex", justifyContent: "flex-end", fontSize: "0.75rem", marginBottom: 4 }}>
+          <span>{l.quantite} × {l.prix} CFA</span>
+        </div>
+      ))}
+
+      <div style={{ borderTop: "1px dashed #000", marginTop: 6, paddingTop: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+          <span>TOTAL</span>
+          <span>{total} CFA</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+          <span>{mode}</span>
+          <span>{total} CFA</span>
+        </div>
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: 10, fontSize: "0.75rem" }}>
+        {date}   {heure}
+      </div>
+      <div style={{ textAlign: "center", marginTop: 2 }}>
+        #{numero}
+      </div>
+      <div style={{ textAlign: "center", marginTop: 10, fontWeight: 700 }}>
+        MERCI POUR VOTRE VISITE
+      </div>
+
+      {estApercu ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 15 }}>
+          <button onClick={onRetour} style={{ flex: 1, padding: 6, fontSize: "0.8rem" }}>
+            ← Retour
+          </button>
+          <button onClick={onValider} style={{ flex: 1, padding: 6, fontSize: "0.8rem", background: C.teal, color: C.white, border: "none", borderRadius: 4, cursor: "pointer" }}>
+            ✅ Valider la vente
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginTop: 15 }}>
+          <button onClick={onNouvelleVente} style={{ flex: 1, padding: 6, fontSize: "0.8rem" }}>
+            Nouvelle vente
+          </button>
+          <button onClick={() => window.print()} style={{ flex: 1, padding: 6, fontSize: "0.8rem" }}>
+            🖨️ Imprimer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// VENTE / CAISSE
 // ============================================================
 function VentesView({ entreprise, produits, ventes, recharger }) {
   const [gererProduits, setGererProduits] = useState(false);
@@ -856,6 +949,9 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
   const [mode, setMode] = useState("Espèces");
   const [calculatriceOuverte, setCalculatriceOuverte] = useState(false);
   const [enregistrement, setEnregistrement] = useState(false);
+  const [typeCommande, setTypeCommande] = useState("SUR PLACE");
+  const [apercuTicket, setApercuTicket] = useState(false);
+  const [dernierTicket, setDernierTicket] = useState(null);
 
   const ajouterProduit = async () => {
     if (!nomProduit || !prixProduit) return;
@@ -891,11 +987,25 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 
   const totalPanier = panier.reduce((s, l) => s + l.prix * l.quantite, 0);
 
+  const getNumeroTicket = async () => {
+    const aujourdHui = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from("ventes")
+      .select("ticket_id", { count: "exact" })
+      .eq("entreprise_id", entreprise.id)
+      .eq("date", aujourdHui);
+    const count = (data?.length || 0) + 1;
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${count}-${randomPart}`;
+  };
+
   const validerTicket = async () => {
     if (panier.length === 0) return;
     setEnregistrement(true);
     const ticketId = crypto.randomUUID();
     const aujourdHui = new Date().toISOString().slice(0, 10);
+    const heure = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const numeroTicket = await getNumeroTicket();
 
     for (const ligne of panier) {
       await supabase.from("ventes").insert({
@@ -912,6 +1022,18 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
       }
     }
 
+    const ticket = {
+      lignes: panier.map(l => ({ nom: l.nom, prix: l.prix, quantite: l.quantite })),
+      total: totalPanier,
+      mode,
+      date: aujourdHui,
+      heure,
+      numero: numeroTicket,
+      typeCommande,
+    };
+
+    setDernierTicket(ticket);
+    setApercuTicket(false);
     setPanier([]);
     setEnregistrement(false);
     recharger();
@@ -951,23 +1073,45 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
     );
   }
 
+  // Affichage de l'aperçu ou du ticket final
+  if (apercuTicket) {
+    return (
+      <TicketFacture
+        entreprise={entreprise}
+        lignes={panier.map(l => ({ nom: l.nom, prix: l.prix, quantite: l.quantite }))}
+        total={totalPanier}
+        mode={mode}
+        date={aujourdHui}
+        heure={new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+        numero="—"
+        typeCommande={typeCommande}
+        estApercu={true}
+        onValider={validerTicket}
+        onRetour={() => setApercuTicket(false)}
+      />
+    );
+  }
+
+  if (dernierTicket) {
+    return (
+      <TicketFacture
+        entreprise={entreprise}
+        lignes={dernierTicket.lignes}
+        total={dernierTicket.total}
+        mode={dernierTicket.mode}
+        date={dernierTicket.date}
+        heure={dernierTicket.heure}
+        numero={dernierTicket.numero}
+        typeCommande={dernierTicket.typeCommande}
+        estApercu={false}
+        onNouvelleVente={() => setDernierTicket(null)}
+      />
+    );
+  }
+
   return (
     <div>
-      <style>{`
-        .gf-caisse { display: block; }
-        @media (min-width: 900px) {
-          .gf-caisse { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
-        }
-        .gf-produits-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        @media (min-width: 600px) {
-          .gf-produits-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (min-width: 900px) {
-          .gf-produits-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-      `}</style>
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
         <div style={{ display: "flex", gap: 12 }}>
           <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>🧮 Calculatrice</span>
@@ -1026,11 +1170,16 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
                   <span>Total</span>
                   <span style={{ color: C.teal }}>{fmt(totalPanier)}</span>
                 </div>
+                <select value={typeCommande} onChange={e => setTypeCommande(e.target.value)}
+                  style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+                  <option value="SUR PLACE">Sur place</option>
+                  <option value="À EMPORTER">À emporter</option>
+                </select>
                 <select value={mode} onChange={e => setMode(e.target.value)}
                   style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
                   {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <Btn onClick={validerTicket} disabled={enregistrement}>{enregistrement ? "Enregistrement..." : `Payer ${fmt(totalPanier)}`}</Btn>
+                <Btn onClick={() => setApercuTicket(true)} disabled={enregistrement}>Aperçu du ticket</Btn>
                 <div onClick={() => setPanier([])} style={{ textAlign: "center", marginTop: 10, fontSize: "0.75rem", color: C.textMuted, cursor: "pointer" }}>Vider le ticket</div>
               </>
             )}
@@ -1060,7 +1209,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 }
 
 // ============================================================
-// STOCK (entrées, sorties, stock restant)
+// STOCK
 // ============================================================
 function StockView({ entreprise, produits, recharger }) {
   const [ajoutOuvert, setAjoutOuvert] = useState(false);
@@ -1221,7 +1370,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="gf-header" style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
         <div>
           <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entreprise.nom}</div>
           <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entreprise.statut} {entreprise.date_expiration ? `· jusqu'au ${entreprise.date_expiration}` : ""}</div>
@@ -1250,7 +1399,7 @@ function EspaceEntreprise({ entreprise, onLogout }) {
 }
 
 // ============================================================
-// COMPOSANT RACINE — à importer dans App.jsx
+// COMPOSANT RACINE
 // ============================================================
 export default function PolyFinanceGF() {
   const [ecran, setEcran] = useState("chargement");
@@ -1289,15 +1438,16 @@ export default function PolyFinanceGF() {
     setEcran("login");
   };
 
-  if (ecran === "chargement") return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>;
-  if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />;
-  if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
-  if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
-  if (ecran === "attente-connecte") return <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
-  if (ecran === "expire") return <AccesExpire entreprise={entreprise} onLogout={seDeconnecter} />;
-  if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
-  if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
-  return null;
+  return (
+    <>
+      {ecran === "chargement" && <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>}
+      {ecran === "login" && <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />}
+      {ecran === "signup" && <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />}
+      {ecran === "attente" && <EnAttente onGoLogin={() => setEcran("login")} />}
+      {ecran === "attente-connecte" && <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />}
+      {ecran === "expire" && <AccesExpire entreprise={entreprise} onLogout={seDeconnecter} />}
+      {ecran === "admin" && <AdminDashboard onLogout={seDeconnecter} />}
+      {ecran === "app" && entreprise && <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />}
+    </>
+  );
 }
-
-

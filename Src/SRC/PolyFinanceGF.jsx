@@ -74,7 +74,7 @@ function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
       {label && <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>}
-      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: props.disabled ? "#eee" : C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
     </div>
   );
 }
@@ -844,7 +844,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 }
 
 // ============================================================
-// VENTE / CAISSE — panier → facture (aperçu) → imprimer → valider
+// VENTE / CAISSE
 // ============================================================
 function VentesView({ entreprise, produits, ventes, recharger }) {
   const [gererProduits, setGererProduits] = useState(false);
@@ -1259,6 +1259,175 @@ function DepensesView({ entreprise, depenses, recharger }) {
   );
 }
 
+// ============================================================
+// PARAMÈTRES
+// ============================================================
+function ParametresView({ entreprise, onProfilMisAJour }) {
+  const [sousMenu, setSousMenu] = useState(null);
+
+  const [nom, setNom] = useState(entreprise.nom || "");
+  const [ville, setVille] = useState(entreprise.ville || "");
+  const [erreurProfil, setErreurProfil] = useState("");
+  const [chargementProfil, setChargementProfil] = useState(false);
+
+  const [ancienMdp, setAncienMdp] = useState("");
+  const [nouveauMdp, setNouveauMdp] = useState("");
+  const [confirmMdp, setConfirmMdp] = useState("");
+  const [erreurMdp, setErreurMdp] = useState("");
+  const [succesMdp, setSuccesMdp] = useState(false);
+  const [chargementMdp, setChargementMdp] = useState(false);
+
+  const profilComplet = !!(entreprise.nom && entreprise.ville && entreprise.email && entreprise.telephone && entreprise.responsable);
+
+  const enregistrerProfil = async () => {
+    setErreurProfil("");
+    if (!nom || !ville) { setErreurProfil("Le nom et la ville sont obligatoires."); return; }
+    setChargementProfil(true);
+    const { error } = await supabase.from("entreprises").update({ nom, ville }).eq("id", entreprise.id);
+    setChargementProfil(false);
+    if (error) { setErreurProfil("Erreur : " + error.message); return; }
+    onProfilMisAJour();
+    setSousMenu(null);
+  };
+
+  const modifierMotDePasse = async () => {
+    setErreurMdp(""); setSuccesMdp(false);
+    if (!ancienMdp || !nouveauMdp || !confirmMdp) { setErreurMdp("Remplis tous les champs."); return; }
+    if (nouveauMdp !== confirmMdp) { setErreurMdp("Les nouveaux mots de passe ne correspondent pas."); return; }
+    if (nouveauMdp.length < 6) { setErreurMdp("Le nouveau mot de passe doit faire au moins 6 caractères."); return; }
+    setChargementMdp(true);
+
+    const { error: erreurVerif } = await supabase.auth.signInWithPassword({ email: entreprise.email, password: ancienMdp });
+    if (erreurVerif) { setChargementMdp(false); setErreurMdp("Ancien mot de passe incorrect."); return; }
+
+    const { error } = await supabase.auth.updateUser({ password: nouveauMdp });
+    setChargementMdp(false);
+    if (error) { setErreurMdp("Erreur : " + error.message); return; }
+    setSuccesMdp(true);
+    setAncienMdp(""); setNouveauMdp(""); setConfirmMdp("");
+  };
+
+  const partager = async () => {
+    const texte = "🚀 Découvrez PolyFinance GF, une solution simple pour gérer votre activité, vos ventes, votre stock et vos dépenses.";
+    const url = "https://polyfinance.vercel.app";
+    if (navigator.share) {
+      try { await navigator.share({ title: "PolyFinance GF", text: texte, url }); } catch {}
+    } else {
+      navigator.clipboard?.writeText(`${texte} ${url}`);
+      alert("Lien copié — colle-le dans WhatsApp, SMS ou où tu veux le partager.");
+    }
+  };
+
+  const ASTUCES = [
+    ["💡", "Enregistrez vos ventes au fur et à mesure", "Cela permet de garder un suivi précis de votre activité."],
+    ["💡", "Consultez régulièrement votre stock", "Vous évitez ainsi les ruptures et vous savez quels produits se vendent le mieux."],
+    ["💡", "Suivez vos dépenses", "Cela permet de mieux comprendre la rentabilité réelle de votre activité."],
+    ["💡", "Consultez le tableau de bord", "Utilisez les indicateurs pour suivre l'évolution de votre entreprise."],
+    ["💡", "Complétez votre profil", "Un profil complet facilite la gestion de votre compte."],
+  ];
+
+  const Carte = ({ icone, titre, children, onClick }) => (
+    <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, cursor: onClick ? "pointer" : "default" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: children ? 8 : 0 }}>
+        <span style={{ fontSize: "1.1rem" }}>{icone}</span>
+        <span style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>{titre}</span>
+      </div>
+      {children}
+    </div>
+  );
+
+  if (sousMenu === "profil") {
+    return (
+      <div style={{ maxWidth: 500 }}>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "1rem", marginBottom: 14 }}>Modifier mon profil</div>
+          <Input label="Nom de l'entreprise" value={nom} onChange={e => setNom(e.target.value)} />
+          <Input label="Ville" value={ville} onChange={e => setVille(e.target.value)} />
+          <Input label="Email" value={entreprise.email || ""} disabled />
+          {erreurProfil && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreurProfil}</div>}
+          <Btn onClick={enregistrerProfil} disabled={chargementProfil}>{chargementProfil ? "Enregistrement..." : "Enregistrer"}</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  if (sousMenu === "motdepasse") {
+    return (
+      <div style={{ maxWidth: 500 }}>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "1rem", marginBottom: 14 }}>Modifier mon mot de passe</div>
+          <Input label="Ancien mot de passe" type="password" value={ancienMdp} onChange={e => setAncienMdp(e.target.value)} />
+          <Input label="Nouveau mot de passe" type="password" value={nouveauMdp} onChange={e => setNouveauMdp(e.target.value)} />
+          <Input label="Confirmer le nouveau mot de passe" type="password" value={confirmMdp} onChange={e => setConfirmMdp(e.target.value)} />
+          {erreurMdp && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreurMdp}</div>}
+          {succesMdp && <div style={{ color: C.green, fontSize: "0.78rem", marginBottom: 10 }}>Votre mot de passe a été modifié avec succès.</div>}
+          <Btn onClick={modifierMotDePasse} disabled={chargementMdp}>{chargementMdp ? "Modification..." : "Modifier le mot de passe"}</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <style>{`
+        .gf-parametres { display: block; max-width: 700px; }
+        @media (min-width: 820px) {
+          .gf-parametres { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 1000px; align-items: start; }
+        }
+      `}</style>
+      <div className="gf-parametres">
+        <Carte icone="👤" titre="Profil" onClick={() => setSousMenu("profil")}>
+          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 8 }}>
+            {entreprise.nom} · {entreprise.ville}<br />{entreprise.email}
+          </div>
+          <Badge text={profilComplet ? "🟢 Profil complet" : "🟡 Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
+        </Carte>
+
+        <Carte icone="🔒" titre="Confidentialité">
+          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>
+            Vos données sont protégées et accessibles uniquement selon vos droits d'accès à votre compte.
+          </div>
+        </Carte>
+
+        <Carte icone="🛠️" titre="Service client">
+          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
+            Besoin d'aide ? Notre service client est disponible pour vous accompagner.<br />📧 amazouemmanuel274@gmail.com
+          </div>
+          <a href="mailto:amazouemmanuel274@gmail.com" style={{ textDecoration: "none" }}>
+            <Btn>Contacter le service client</Btn>
+          </a>
+        </Carte>
+
+        <Carte icone="🔄" titre="Mise à jour">
+          <Badge text="🟢 PolyFinance GF est à jour" color="vert" />
+        </Carte>
+
+        <Carte icone="🔑" titre="Modifier mon mot de passe" onClick={() => setSousMenu("motdepasse")}>
+          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Sécurisez votre compte</div>
+        </Carte>
+
+        <Carte icone="🎁" titre="Inviter quelqu'un">
+          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
+            Vous connaissez un entrepreneur, un restaurateur ou un commerçant qui pourrait utiliser PolyFinance GF ? Invitez-le à découvrir la plateforme.
+          </div>
+          <Btn onClick={partager}>Inviter quelqu'un</Btn>
+        </Carte>
+      </div>
+
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", margin: "20px 0 12px" }}>📖 Guide — Astuces pour mieux utiliser PolyFinance GF</div>
+      <div className="gf-parametres">
+        {ASTUCES.map(([icone, titre, texte], i) => (
+          <Carte key={i} icone={icone} titre={titre}>
+            <div style={{ fontSize: "0.8rem", color: C.textMuted }}>{texte}</div>
+          </Carte>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
   const [clients, setClients] = useState([]);
@@ -1267,20 +1436,23 @@ function EspaceEntreprise({ entreprise, onLogout }) {
   const [produits, setProduits] = useState([]);
   const [ventes, setVentes] = useState([]);
   const [depenses, setDepenses] = useState([]);
+  const [entrepriseLocale, setEntrepriseLocale] = useState(entreprise);
 
   const recharger = async () => {
-    const { data: c } = await supabase.from("clients").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
-    const { data: p } = await supabase.from("paiements").select("*").eq("entreprise_id", entreprise.id).order("date", { ascending: false });
-    const { data: cr } = await supabase.from("creances").select("*, echeances(*)").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
+    const { data: c } = await supabase.from("clients").select("*").eq("entreprise_id", entrepriseLocale.id).order("created_at", { ascending: false });
+    const { data: p } = await supabase.from("paiements").select("*").eq("entreprise_id", entrepriseLocale.id).order("date", { ascending: false });
+    const { data: cr } = await supabase.from("creances").select("*, echeances(*)").eq("entreprise_id", entrepriseLocale.id).order("created_at", { ascending: false });
     setClients(c || []);
     setPaiements(p || []);
     setCreances(cr || []);
-    const { data: prod } = await supabase.from("produits").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
-    const { data: vte } = await supabase.from("ventes").select("*").eq("entreprise_id", entreprise.id).order("created_at", { ascending: false });
-    const { data: dep } = await supabase.from("depenses").select("*").eq("entreprise_id", entreprise.id).order("date", { ascending: false });
+    const { data: prod } = await supabase.from("produits").select("*").eq("entreprise_id", entrepriseLocale.id).order("created_at", { ascending: false });
+    const { data: vte } = await supabase.from("ventes").select("*").eq("entreprise_id", entrepriseLocale.id).order("created_at", { ascending: false });
+    const { data: dep } = await supabase.from("depenses").select("*").eq("entreprise_id", entrepriseLocale.id).order("date", { ascending: false });
     setProduits(prod || []);
     setVentes(vte || []);
     setDepenses(dep || []);
+    const { data: e } = await supabase.from("entreprises").select("*").eq("id", entrepriseLocale.id).single();
+    if (e) setEntrepriseLocale(e);
   };
 
   useEffect(() => { recharger(); }, []);
@@ -1289,13 +1461,13 @@ function EspaceEntreprise({ entreprise, onLogout }) {
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entreprise.nom}</div>
-          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entreprise.statut} {entreprise.date_expiration ? `· jusqu'au ${entreprise.date_expiration}` : ""}</div>
+          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entrepriseLocale.nom}</div>
+          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entrepriseLocale.statut} {entrepriseLocale.date_expiration ? `· jusqu'au ${entrepriseLocale.date_expiration}` : ""}</div>
         </div>
         <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
       </div>
       <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
-        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"], ["stock", "Stock"], ["depenses", "Dépenses"]].map(([id, label]) => (
+        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"], ["stock", "Stock"], ["depenses", "Dépenses"], ["parametres", "Paramètres"]].map(([id, label]) => (
           <div key={id} onClick={() => setTab(id)}
             style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 14px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
             {label}
@@ -1304,12 +1476,13 @@ function EspaceEntreprise({ entreprise, onLogout }) {
       </div>
       <div style={{ padding: 16 }}>
         {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
-        {tab === "clients" && <ClientsView entreprise={entreprise} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
-        {tab === "paiements" && <PaiementsView entreprise={entreprise} clients={clients} paiements={paiements} recharger={recharger} />}
-        {tab === "creances" && <CreancesView entreprise={entreprise} clients={clients} creances={creances} recharger={recharger} />}
-        {tab === "ventes" && <VentesView entreprise={entreprise} produits={produits} ventes={ventes} recharger={recharger} />}
-        {tab === "stock" && <StockView entreprise={entreprise} produits={produits} recharger={recharger} />}
-        {tab === "depenses" && <DepensesView entreprise={entreprise} depenses={depenses} recharger={recharger} />}
+        {tab === "clients" && <ClientsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
+        {tab === "paiements" && <PaiementsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} recharger={recharger} />}
+        {tab === "creances" && <CreancesView entreprise={entrepriseLocale} clients={clients} creances={creances} recharger={recharger} />}
+        {tab === "ventes" && <VentesView entreprise={entrepriseLocale} produits={produits} ventes={ventes} recharger={recharger} />}
+        {tab === "stock" && <StockView entreprise={entrepriseLocale} produits={produits} recharger={recharger} />}
+        {tab === "depenses" && <DepensesView entreprise={entrepriseLocale} depenses={depenses} recharger={recharger} />}
+        {tab === "parametres" && <ParametresView entreprise={entrepriseLocale} onProfilMisAJour={recharger} />}
       </div>
     </div>
   );
@@ -1365,3 +1538,4 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
+

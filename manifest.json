@@ -1,7 +1,7 @@
 {
-  "name": "Poly Finance AI",
+  "name": "PolyFinance",
   "short_name": "PolyFinance",
-  "description": "La plateforme d'éducation financière pour l'Afrique francophone",
+  "description": "Éducation financière et gestion d'entreprise pour l'Afrique francophone",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],

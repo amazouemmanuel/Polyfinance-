@@ -145,7 +145,7 @@ function Calculatrice() {
 // ============================================================
 // ÉCRAN : Connexion
 // ============================================================
-function Connexion({ onGoSignup, onLoggedIn }) {
+function Connexion({ onGoSignup, onLoggedIn, onGoForgot }) {
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState("");
@@ -169,11 +169,97 @@ function Connexion({ onGoSignup, onLoggedIn }) {
       </div>
       <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
       <Input label="Mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="••••••••" />
+      <div onClick={onGoForgot} style={{ textAlign: "right", color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", marginBottom: 14, marginTop: -6 }}>
+        Mot de passe oublié ?
+      </div>
       {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
       <Btn onClick={connecter} disabled={chargement}>{chargement ? "Connexion..." : "Se connecter"}</Btn>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
         Pas encore de compte ? <span onClick={onGoSignup} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Créer un compte</span>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ÉCRAN : Mot de passe oublié
+// ============================================================
+function MotDePasseOublie({ onGoLogin }) {
+  const [email, setEmail] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [envoye, setEnvoye] = useState(false);
+  const [chargement, setChargement] = useState(false);
+
+  const envoyer = async () => {
+    setErreur("");
+    if (!email) { setErreur("Entre ton email."); return; }
+    setChargement(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    setChargement(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    setEnvoye(true);
+  };
+
+  if (envoye) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
+        <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>📧</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Lien envoyé</div>
+        <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
+          Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé. Clique dessus pour choisir un nouveau mot de passe.
+        </div>
+        <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Retour à la connexion</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Mot de passe oublié</div>
+        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Entre ton email, on t'envoie un lien pour le réinitialiser</div>
+      </div>
+      <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
+      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      <Btn onClick={envoyer} disabled={chargement}>{chargement ? "Envoi..." : "Envoyer le lien"}</Btn>
+      <div onClick={onGoLogin} style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted, cursor: "pointer" }}>← Retour à la connexion</div>
+    </div>
+  );
+}
+
+// ============================================================
+// ÉCRAN : Réinitialiser le mot de passe (après clic sur le lien reçu)
+// ============================================================
+function ReinitialiserMotDePasse({ onTermine }) {
+  const [nouveauMdp, setNouveauMdp] = useState("");
+  const [confirmMdp, setConfirmMdp] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [chargement, setChargement] = useState(false);
+
+  const valider = async () => {
+    setErreur("");
+    if (!nouveauMdp || !confirmMdp) { setErreur("Remplis tous les champs."); return; }
+    if (nouveauMdp !== confirmMdp) { setErreur("Les mots de passe ne correspondent pas."); return; }
+    if (nouveauMdp.length < 6) { setErreur("Le mot de passe doit faire au moins 6 caractères."); return; }
+    setChargement(true);
+    const { error } = await supabase.auth.updateUser({ password: nouveauMdp });
+    setChargement(false);
+    if (error) { setErreur("Erreur : " + error.message); return; }
+    onTermine();
+  };
+
+  return (
+    <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Réinitialiser votre mot de passe</div>
+        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Choisis un nouveau mot de passe</div>
+      </div>
+      <Input label="Nouveau mot de passe" type="password" value={nouveauMdp} onChange={e => setNouveauMdp(e.target.value)} placeholder="Min. 6 caractères" />
+      <Input label="Confirmation" type="password" value={confirmMdp} onChange={e => setConfirmMdp(e.target.value)} placeholder="••••••••" />
+      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      <Btn onClick={valider} disabled={chargement}>{chargement ? "Enregistrement..." : "Enregistrer le nouveau mot de passe"}</Btn>
     </div>
   );
 }
@@ -906,6 +992,43 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
     setEcran("apercu");
   };
 
+  const genererTexteRecu = () => {
+    const L = 32;
+    const centrer = (t) => { const s = Math.max(0, Math.floor((L - t.length) / 2)); return " ".repeat(s) + t; };
+    const ligne2col = (g, d) => { const espace = Math.max(1, L - g.length - d.length); return g + " ".repeat(espace) + d; };
+    const sep = "-".repeat(L);
+    let lignes = [];
+    lignes.push(centrer((entreprise.nom || "").toUpperCase()));
+    lignes.push(`Employe : ${entreprise.responsable || "-"}`);
+    lignes.push(`PDV : Comptoir`);
+    lignes.push(sep);
+    lignes.push(centrer(typeCommande.toUpperCase()));
+    lignes.push(sep);
+    panier.forEach(l => {
+      lignes.push(ligne2col(l.nom, fmt(l.prix * l.quantite)));
+      lignes.push(`${l.quantite} x ${fmt(l.prix)}`);
+    });
+    lignes.push(sep);
+    lignes.push(ligne2col("TOTAL", fmt(totalPanier)));
+    lignes.push(ligne2col(mode, fmt(totalPanier)));
+    lignes.push(sep);
+    if (ticketCourant) {
+      lignes.push(ligne2col(ticketCourant.dateHeure.toLocaleDateString("fr-FR"), ticketCourant.dateHeure.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })));
+      lignes.push(centrer(ticketCourant.numero));
+    }
+    lignes.push(sep);
+    lignes.push(centrer("MERCI POUR VOTRE"));
+    lignes.push(centrer("VISITE"));
+    lignes.push(""); lignes.push(""); lignes.push("");
+    return lignes.join("\n");
+  };
+
+  const imprimerViaRawBT = () => {
+    const texte = genererTexteRecu();
+    const b64 = btoa(unescape(encodeURIComponent(texte)));
+    window.location.href = `intent:base64,${b64}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+  };
+
   const validerTicket = async () => {
     if (!ticketCourant) return;
     setEnregistrement(true);
@@ -1003,7 +1126,9 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
           <div style={{ textAlign: "center", fontWeight: 700 }}>MERCI POUR VOTRE VISITE</div>
         </div>
 
-        <Btn onClick={() => window.print()} variant="outline">🖨️ Imprimer</Btn>
+        <Btn onClick={() => window.print()} variant="outline">🖨️ Imprimer (imprimante normale)</Btn>
+        <div style={{ height: 10 }} />
+        <Btn onClick={imprimerViaRawBT} variant="outline">📶 Imprimer via RawBT (Bluetooth)</Btn>
         <div style={{ height: 10 }} />
         <Btn onClick={validerTicket} disabled={enregistrement}>{enregistrement ? "Enregistrement..." : "✅ Valider et encaisser"}</Btn>
       </div>
@@ -1267,7 +1392,10 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
 
   const [nom, setNom] = useState(entreprise.nom || "");
   const [ville, setVille] = useState(entreprise.ville || "");
+  const [telephone, setTelephone] = useState(entreprise.telephone || "");
+  const [nouvelEmail, setNouvelEmail] = useState(entreprise.email || "");
   const [erreurProfil, setErreurProfil] = useState("");
+  const [succesProfil, setSuccesProfil] = useState("");
   const [chargementProfil, setChargementProfil] = useState(false);
 
   const [ancienMdp, setAncienMdp] = useState("");
@@ -1280,14 +1408,24 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
   const profilComplet = !!(entreprise.nom && entreprise.ville && entreprise.email && entreprise.telephone && entreprise.responsable);
 
   const enregistrerProfil = async () => {
-    setErreurProfil("");
+    setErreurProfil(""); setSuccesProfil("");
     if (!nom || !ville) { setErreurProfil("Le nom et la ville sont obligatoires."); return; }
     setChargementProfil(true);
-    const { error } = await supabase.from("entreprises").update({ nom, ville }).eq("id", entreprise.id);
+
+    const { error } = await supabase.from("entreprises").update({ nom, ville, telephone }).eq("id", entreprise.id);
+    if (error) { setChargementProfil(false); setErreurProfil("Erreur : " + error.message); return; }
+
+    if (nouvelEmail && nouvelEmail !== entreprise.email) {
+      const { error: erreurEmail } = await supabase.auth.updateUser({ email: nouvelEmail });
+      if (erreurEmail) { setChargementProfil(false); setErreurProfil("Nom/ville/téléphone enregistrés, mais erreur email : " + erreurEmail.message); return; }
+      await supabase.from("entreprises").update({ email: nouvelEmail }).eq("id", entreprise.id);
+      setSuccesProfil("Enregistré. Un email de confirmation a été envoyé à ta nouvelle adresse — clique dessus pour valider le changement.");
+    } else {
+      setSuccesProfil("Profil mis à jour.");
+    }
+
     setChargementProfil(false);
-    if (error) { setErreurProfil("Erreur : " + error.message); return; }
     onProfilMisAJour();
-    setSousMenu(null);
   };
 
   const modifierMotDePasse = async () => {
@@ -1344,8 +1482,13 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "1rem", marginBottom: 14 }}>Modifier mon profil</div>
           <Input label="Nom de l'entreprise" value={nom} onChange={e => setNom(e.target.value)} />
           <Input label="Ville" value={ville} onChange={e => setVille(e.target.value)} />
-          <Input label="Email" value={entreprise.email || ""} disabled />
+          <Input label="Téléphone" value={telephone} onChange={e => setTelephone(e.target.value)} />
+          <Input label="Email" type="email" value={nouvelEmail} onChange={e => setNouvelEmail(e.target.value)} />
+          <div style={{ color: C.textMuted, fontSize: "0.7rem", marginBottom: 12 }}>
+            Changer l'email demandera une confirmation par lien envoyé à la nouvelle adresse.
+          </div>
           {erreurProfil && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreurProfil}</div>}
+          {succesProfil && <div style={{ color: C.green, fontSize: "0.78rem", marginBottom: 10 }}>{succesProfil}</div>}
           <Btn onClick={enregistrerProfil} disabled={chargementProfil}>{chargementProfil ? "Enregistrement..." : "Enregistrer"}</Btn>
         </div>
       </div>
@@ -1380,7 +1523,7 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
       <div className="gf-parametres">
         <Carte icone="👤" titre="Profil" onClick={() => setSousMenu("profil")}>
           <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 8 }}>
-            {entreprise.nom} · {entreprise.ville}<br />{entreprise.email}
+            {entreprise.nom} · {entreprise.ville}<br />{entreprise.email} · {entreprise.telephone}
           </div>
           <Badge text={profilComplet ? "🟢 Profil complet" : "🟡 Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
         </Carte>
@@ -1520,7 +1663,13 @@ export default function PolyFinanceGF() {
     }
   };
 
-  useEffect(() => { chargerEntreprise(); }, []);
+  useEffect(() => {
+    chargerEntreprise();
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setEcran("reinitialiser-mdp");
+    });
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
 
   const seDeconnecter = async () => {
     await supabase.auth.signOut();
@@ -1529,7 +1678,9 @@ export default function PolyFinanceGF() {
   };
 
   if (ecran === "chargement") return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>;
-  if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} />;
+  if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} onGoForgot={() => setEcran("mdp-oublie")} />;
+  if (ecran === "mdp-oublie") return <MotDePasseOublie onGoLogin={() => setEcran("login")} />;
+  if (ecran === "reinitialiser-mdp") return <ReinitialiserMotDePasse onTermine={() => { setEcran("login"); }} />;
   if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
   if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
   if (ecran === "attente-connecte") return <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
@@ -1538,4 +1689,3 @@ export default function PolyFinanceGF() {
   if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
   return null;
 }
-

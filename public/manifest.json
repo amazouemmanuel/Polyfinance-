@@ -1,0 +1,13 @@
+{
+  "name": "PolyFinance GF",
+  "short_name": "PolyFinance GF",
+  "description": "Gestion clients, ventes, stock et dépenses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F2E42",
+  "theme_color": "#1B4D6E",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

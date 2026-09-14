@@ -167,6 +167,23 @@ function Input({ onSend, placeholder }) {
 }
 
 // ============================================================
+// BOUTON RETOUR AU MENU PRINCIPAL
+// ============================================================
+function BoutonRetourMenu({ onClick, sombre }) {
+  return (
+    <button onClick={onClick} style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      background: sombre ? "rgba(255,255,255,0.12)" : C.white,
+      border: sombre ? "1px solid rgba(255,255,255,0.3)" : `1px solid ${C.border}`,
+      borderRadius: 9, padding: "7px 13px", cursor: "pointer",
+      color: sombre ? C.white : C.navy, fontSize: "0.78rem", fontWeight: 700,
+    }}>
+      ← Retour au menu principal
+    </button>
+  );
+}
+
+// ============================================================
 // ÉCRAN D'ACCUEIL — choix entre PolyFinance AI et PolyFinance GF
 // ============================================================
 function Landing({ onChoisirIA, onChoisirGF }) {
@@ -275,6 +292,12 @@ export default function App() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {page !== "gf" && page !== "landing" && (
+        <div style={{ background: C.bg, padding: "8px 16px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <BoutonRetourMenu onClick={() => setPage("landing")} />
         </div>
       )}
 
@@ -394,8 +417,8 @@ export default function App() {
 
       {page === "gf" && (
         <div style={{ flex: 1, overflowY: "auto" }}>
-          <div onClick={() => setPage("landing")} style={{ background: C.navyDark, color: "rgba(255,255,255,0.6)", fontSize: "0.72rem", padding: "8px 16px", cursor: "pointer" }}>
-            ← Retour à l'accueil PolyFinance
+          <div style={{ background: C.navyDark, padding: "10px 16px" }}>
+            <BoutonRetourMenu onClick={() => setPage("landing")} sombre />
           </div>
           <PolyFinanceGF />
         </div>

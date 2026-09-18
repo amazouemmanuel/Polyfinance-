@@ -230,7 +230,7 @@ function MotDePasseOublie({ onGoLogin }) {
 }
 
 // ============================================================
-// ÉCRAN : Réinitialiser le mot de passe (après clic sur le lien reçu)
+// ÉCRAN : Réinitialiser le mot de passe
 // ============================================================
 function ReinitialiserMotDePasse({ onTermine }) {
   const [nouveauMdp, setNouveauMdp] = useState("");
@@ -1387,6 +1387,53 @@ function DepensesView({ entreprise, depenses, recharger }) {
 // ============================================================
 // PARAMÈTRES
 // ============================================================
+const TEXTE_CONFIDENTIALITE = `Politique de Confidentialité — PolyFinance GF
+
+1. Responsable du traitement
+PolyFinance GF est édité par Amazou Nogbou Emmanuel Vianney (contact : amazouemmanuel274@gmail.com).
+
+2. Données collectées
+- Données de votre compte : nom de l'entreprise, ville, nom du responsable, téléphone, email, mot de passe (jamais stocké en clair).
+- Données que vous saisissez vous-même dans l'application : vos clients, vos ventes, votre stock, vos dépenses et vos créances.
+
+3. Pourquoi ces données sont collectées
+Elles servent uniquement à faire fonctionner votre espace de gestion, activer votre abonnement Premium après paiement, et vous apporter un support en cas de besoin.
+
+4. Hébergement et sous-traitants
+Vos données sont hébergées par Supabase. L'envoi des emails (confirmation de compte, réinitialisation de mot de passe) passe par un service tiers (Brevo ou Gmail selon la configuration active). Aucune donnée n'est vendue ni partagée à des fins commerciales avec d'autres tiers.
+
+5. Durée de conservation
+Les comptes en formule Gratuite non renouvelés sont supprimés automatiquement après leur période d'essai. Une sauvegarde interne de sécurité est conservée 14 jours glissants.
+
+6. Vos droits
+Conformément à la loi ivoirienne n°2013-450 relative à la protection des données à caractère personnel, vous pouvez à tout moment demander l'accès, la rectification ou la suppression de vos données en écrivant à amazouemmanuel274@gmail.com.`;
+
+const TEXTE_CONDITIONS = `Conditions d'Utilisation — PolyFinance GF
+
+1. Objet
+PolyFinance GF est un outil de gestion (clients, ventes, stock, dépenses) destiné aux entreprises, commerces et restaurants.
+
+2. Compte utilisateur
+Vous êtes responsable de l'exactitude des informations fournies et de la confidentialité de votre mot de passe. Toute activité effectuée depuis votre compte est présumée faite par vous.
+
+3. Formules et paiement
+La formule Gratuite donne accès au service pendant 2 jours. La formule Premium (8 000 FCFA / 30 jours) est activée manuellement après réception et vérification du paiement (Wave, Orange Money). Aucun remboursement n'est effectué une fois l'accès Premium activé.
+
+4. Vos données de gestion
+Vous restez seul responsable de l'exactitude des données que vous saisissez (vos clients, vos ventes, votre stock, vos dépenses). PolyFinance GF n'intervient pas dans vos relations commerciales avec vos propres clients.
+
+5. Disponibilité du service
+Le service est fourni "en l'état", sans garantie de disponibilité continue. Des interruptions ponctuelles pour maintenance peuvent survenir.
+
+6. Limitation de responsabilité
+PolyFinance GF ne peut être tenu responsable des décisions de gestion prises sur la base des données affichées, ni des litiges entre vous et vos propres clients ou fournisseurs.
+
+7. Résiliation
+Vous pouvez cesser d'utiliser le service à tout moment. La suppression définitive de votre compte peut être demandée par email.
+
+8. Droit applicable
+Les présentes conditions sont régies par le droit ivoirien.`;
+
 function ParametresView({ entreprise, onProfilMisAJour }) {
   const [sousMenu, setSousMenu] = useState(null);
 
@@ -1474,6 +1521,18 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
     </div>
   );
 
+  if (sousMenu === "confidentialite" || sousMenu === "conditions") {
+    const texte = sousMenu === "confidentialite" ? TEXTE_CONFIDENTIALITE : TEXTE_CONDITIONS;
+    return (
+      <div style={{ maxWidth: 600 }}>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, whiteSpace: "pre-line", fontSize: "0.85rem", lineHeight: 1.6, color: C.text }}>
+          {texte}
+        </div>
+      </div>
+    );
+  }
+
   if (sousMenu === "profil") {
     return (
       <div style={{ maxWidth: 500 }}>
@@ -1528,10 +1587,12 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
           <Badge text={profilComplet ? "🟢 Profil complet" : "🟡 Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
         </Carte>
 
-        <Carte icone="🔒" titre="Confidentialité">
-          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>
-            Vos données sont protégées et accessibles uniquement selon vos droits d'accès à votre compte.
-          </div>
+        <Carte icone="🔒" titre="Confidentialité" onClick={() => setSousMenu("confidentialite")}>
+          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Comment vos données sont protégées et utilisées</div>
+        </Carte>
+
+        <Carte icone="📜" titre="Conditions d'utilisation" onClick={() => setSousMenu("conditions")}>
+          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Les règles d'usage de PolyFinance GF</div>
         </Carte>
 
         <Carte icone="🛠️" titre="Service client">

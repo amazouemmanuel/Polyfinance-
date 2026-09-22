@@ -10,6 +10,7 @@ const C = {
 };
 
 const ADMIN_EMAIL = "amazouemmanuel274@gmail.com";
+const WHATSAPP_NUMERO = "2250759570327";
 
 const PLANS = [
   { id: "gratuit", nom: "Gratuit", prix: "0 F", periode: "2 jours d'essai", jours: 2 },
@@ -17,6 +18,17 @@ const PLANS = [
 ];
 
 const MODES_PAIEMENT = ["Espèces", "Wave", "Orange Money", "Virement"];
+
+const GLOBAL_CSS = `
+  .gf-input { transition: border-color .15s ease, box-shadow .15s ease; }
+  .gf-input:focus { border-color: ${C.teal} !important; box-shadow: 0 0 0 3px ${C.teal}22; }
+  .gf-input:disabled { cursor: not-allowed; }
+  .gf-btn { transition: filter .15s ease, transform .05s ease, box-shadow .15s ease; }
+  .gf-btn:hover:not(:disabled) { filter: brightness(1.06); }
+  .gf-btn:active:not(:disabled) { transform: translateY(1px); }
+  .gf-card-link { transition: border-color .15s ease, box-shadow .15s ease; }
+  .gf-card-link:hover { border-color: ${C.teal}80 !important; box-shadow: 0 2px 8px rgba(27,77,110,0.08); }
+`;
 
 function fmt(v) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(Number(v) || 0)) + " F";
@@ -70,11 +82,25 @@ function debutAnneeISO() {
   return `${d.getFullYear()}-01-01`;
 }
 
+function exporterCSV(nomFichier, colonnes, lignes) {
+  const echapper = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const entete = colonnes.map(c => echapper(c.label)).join(";");
+  const corps = lignes.map(ligne => colonnes.map(c => echapper(ligne[c.cle])).join(";")).join("\n");
+  const csv = "\uFEFF" + entete + "\n" + corps;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${nomFichier}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
       {label && <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>}
-      <input {...props} style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: props.disabled ? "#eee" : C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+      <input {...props} className="gf-input" style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: props.disabled ? "#eee" : C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
     </div>
   );
 }
@@ -82,8 +108,8 @@ function Input({ label, ...props }) {
 function Btn({ children, onClick, disabled, variant = "primary" }) {
   const bg = variant === "primary" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : "transparent";
   return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 11, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" }}>
+    <button onClick={onClick} disabled={disabled} className="gf-btn"
+      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 10, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" }}>
       {children}
     </button>
   );
@@ -124,7 +150,7 @@ function Calculatrice() {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>🧮 Calculatrice</div>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Calculatrice</div>
         <span onClick={() => appuyer("⌫")} style={{ color: C.textMuted, fontSize: "0.75rem", cursor: "pointer" }}>⌫ Effacer</span>
       </div>
       <div style={{ background: C.bg, borderRadius: 8, padding: 12, textAlign: "right", fontSize: "1.15rem", fontWeight: 700, marginBottom: 10, minHeight: 30, overflowX: "auto", whiteSpace: "nowrap" }}>
@@ -132,12 +158,76 @@ function Calculatrice() {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {touches.map(k => (
-          <button key={k} onClick={() => appuyer(k)}
+          <button key={k} onClick={() => appuyer(k)} className="gf-btn"
             style={{ padding: 14, borderRadius: 8, border: `1px solid ${C.border}`, background: speciales.includes(k) ? C.teal : C.bg, color: speciales.includes(k) ? C.white : C.text, fontWeight: 700, fontSize: "1rem", cursor: "pointer" }}>
             {k}
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ÉCRAN PARTAGÉ : Accès Premium requis (attente / expiré) avec WhatsApp
+// ============================================================
+function EcranPaiementRequis({ icone, titre, sousTitre, messageWhatsapp, lienSecondaire, onLogout }) {
+  const lienWhatsapp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(messageWhatsapp)}`;
+
+  const Etape = ({ numero, children }) => (
+    <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.navy, color: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem", flexShrink: 0 }}>{numero}</span>
+  );
+
+  return (
+    <div style={{ maxWidth: 440, margin: "0 auto", padding: "32px 20px", textAlign: "center" }}>
+      <div style={{ fontSize: "2.4rem", marginBottom: 10 }}>{icone}</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.25rem", marginBottom: 6 }}>{titre}</div>
+      <div style={{ color: C.textMuted, fontSize: "0.85rem", marginBottom: 22 }}>{sousTitre}</div>
+
+      <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}30`, borderRadius: 12, padding: 16, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+        <span style={{ fontSize: "1.4rem" }}>👑</span>
+        <div>
+          <div style={{ color: C.navy, fontWeight: 700, fontSize: "0.85rem" }}>Passez en Premium</div>
+          <div style={{ color: C.teal, fontWeight: 800, fontSize: "1.1rem" }}>8 000 F <span style={{ color: C.textMuted, fontWeight: 500, fontSize: "0.78rem" }}>/ 30 jours</span></div>
+        </div>
+      </div>
+
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, textAlign: "left" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <Etape numero="1" />
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Payez via Wave ou Orange Money</div>
+        </div>
+        <div style={{ color: C.textMuted, fontSize: "0.75rem", marginBottom: 6 }}>Au numéro :</div>
+        <div style={{ background: C.navy, color: C.white, borderRadius: 9, padding: "9px 14px", fontWeight: 800, fontSize: "0.95rem", display: "inline-block", marginBottom: 10 }}>
+          07 59 57 03 27
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          <span style={{ background: "#1B9CFC18", color: "#0b7fd1", fontWeight: 700, fontSize: "0.7rem", padding: "4px 10px", borderRadius: 7 }}>Wave</span>
+          <span style={{ background: "#F4770018", color: "#c05e00", fontWeight: 700, fontSize: "0.7rem", padding: "4px 10px", borderRadius: 7 }}>Orange Money</span>
+        </div>
+        <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>Montant : <strong style={{ color: C.text }}>8 000 F</strong> · Durée : <strong style={{ color: C.text }}>30 jours</strong></div>
+      </div>
+
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 14, textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}>
+        <Etape numero="2" />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Envoyez votre preuve de paiement</div>
+          <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>sur WhatsApp</div>
+        </div>
+      </div>
+
+      <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block", marginBottom: 12 }}>
+        <div className="gf-btn" style={{ background: "#25D366", borderRadius: 10, padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: C.white, fontWeight: 700, fontSize: "0.88rem" }}>
+          Envoyer la preuve sur WhatsApp →
+        </div>
+      </a>
+
+      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+        <span style={{ color: C.textMuted, fontSize: "0.72rem" }}>Activation après vérification du paiement.</span>
+      </div>
+
+      {lienSecondaire}
+      {onLogout && <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>}
     </div>
   );
 }
@@ -374,21 +464,17 @@ function Inscription({ onGoLogin, onInscrit }) {
 }
 
 // ============================================================
-// ÉCRAN : Attente de vérification
+// ÉCRAN : Attente de vérification (juste après inscription)
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
-    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
-      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>📧</div>
-      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Vérifiez votre email</div>
-      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
-        Votre compte a été créé. Cliquez sur le lien reçu par email pour confirmer votre adresse.
-        Ensuite, effectuez le paiement de 8 000 FCFA via Wave ou Orange Money au{" "}
-        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve sur WhatsApp.
-        Votre accès Premium sera activé dès vérification.
-      </div>
-      <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Retour à la connexion</div>
-    </div>
+    <EcranPaiementRequis
+      icone="📧"
+      titre="Vérifiez votre email"
+      sousTitre="Confirmez votre adresse, puis réglez votre accès Premium."
+      messageWhatsapp="Bonjour, je viens de créer mon compte PolyFinance GF et je souhaite activer mon accès Premium. Voici ma preuve de paiement."
+      lienSecondaire={<div onClick={onGoLogin} style={{ color: C.textMuted, fontSize: "0.8rem", cursor: "pointer", marginBottom: 14 }}>← Retour à la connexion</div>}
+    />
   );
 }
 
@@ -397,18 +483,13 @@ function EnAttente({ onGoLogin }) {
 // ============================================================
 function EnAttenteConnecte({ entreprise, onLogout }) {
   return (
-    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
-      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏳</div>
-      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
-        Bienvenue {entreprise.nom}, votre paiement est en cours de vérification
-      </div>
-      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
-        Votre email est bien confirmé. Il ne reste plus qu'à valider votre paiement Premium de 8 000 FCFA
-        (Wave/Orange Money au <strong style={{ color: C.text }}>07 59 57 03 27</strong>, preuve envoyée sur WhatsApp).
-        Votre espace s'ouvrira automatiquement dès l'activation.
-      </div>
-      <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>
-    </div>
+    <EcranPaiementRequis
+      icone="⏳"
+      titre={`Bienvenue ${entreprise.nom}`}
+      sousTitre="Votre paiement est en cours de vérification."
+      messageWhatsapp={`Bonjour, voici ma preuve de paiement Premium pour ${entreprise.nom}.`}
+      onLogout={onLogout}
+    />
   );
 }
 
@@ -417,18 +498,13 @@ function EnAttenteConnecte({ entreprise, onLogout }) {
 // ============================================================
 function AccesExpire({ entreprise, onLogout }) {
   return (
-    <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
-      <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>⏰</div>
-      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>
-        Votre accès a expiré
-      </div>
-      <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
-        Votre période {entreprise.plan === "gratuit" ? "d'essai gratuit" : "Premium"} est terminée.
-        Passez en Premium (8 000 FCFA / 30 jours) via Wave ou Orange Money au{" "}
-        <strong style={{ color: C.text }}>07 59 57 03 27</strong>, puis envoyez la preuve sur WhatsApp.
-      </div>
-      <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>
-    </div>
+    <EcranPaiementRequis
+      icone="⏰"
+      titre="Votre accès a expiré"
+      sousTitre={`Votre période ${entreprise.plan === "gratuit" ? "d'essai gratuit" : "Premium"} est terminée.`}
+      messageWhatsapp={`Bonjour, je souhaite renouveler mon accès Premium pour ${entreprise.nom}. Voici ma preuve de paiement.`}
+      onLogout={onLogout}
+    />
   );
 }
 
@@ -484,7 +560,7 @@ function AdminDashboard({ onLogout }) {
               <span>{e.date_expiration ? `Expire le ${e.date_expiration}` : "Pas d'expiration"}</span>
             </div>
             {e.statut === "En attente" && (
-              <Btn onClick={() => activerPremium(e.id)}>✅ Activer Premium</Btn>
+              <Btn onClick={() => activerPremium(e.id)}>Activer Premium</Btn>
             )}
           </div>
         ))}
@@ -604,7 +680,7 @@ function TableauDeBord({ clients, paiements, creances, ventes, produits, depense
 
       {stockFaible.length > 0 && (
         <div style={{ background: "#fef2f2", border: `1px solid ${C.red}40`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.red, fontSize: "0.82rem", marginBottom: 8 }}>⚠️ Stock faible</div>
+          <div style={{ fontWeight: 700, color: C.red, fontSize: "0.82rem", marginBottom: 8 }}>Stock faible</div>
           {stockFaible.map(p => (
             <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", padding: "4px 0" }}>
               <span>{p.nom}</span>
@@ -741,8 +817,18 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
         <Input placeholder="Téléphone" value={telephone} onChange={e => setTelephone(e.target.value)} />
         <Btn onClick={ajouter}>Ajouter</Btn>
       </div>
+      {clients.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <Btn variant="outline" onClick={() => exporterCSV("clients", [
+            { label: "Nom", cle: "nom" }, { label: "Téléphone", cle: "telephone" }, { label: "Statut", cle: "statut" },
+          ], clients)}>Exporter en CSV</Btn>
+        </div>
+      )}
+      {clients.length === 0 && (
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucun client pour l'instant.</div>
+      )}
       {clients.map(c => (
-        <div key={c.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div key={c.id} className="gf-card-link" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div onClick={() => setClientOuvert(c)} style={{ cursor: "pointer", flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.teal }}>{c.nom}</div>
             <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{c.telephone}</div>
@@ -773,16 +859,26 @@ function PaiementsView({ entreprise, clients, paiements, recharger }) {
     <div style={{ maxWidth: 700 }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer un paiement</div>
-        <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+        <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
           <option value="">— Choisir un client —</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
         </select>
         <Input type="number" placeholder="Montant (FCFA)" value={montant} onChange={e => setMontant(e.target.value)} />
-        <select value={statut} onChange={e => setStatut(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+        <select value={statut} onChange={e => setStatut(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
           <option>Payé</option><option>En attente</option>
         </select>
         <Btn onClick={ajouter}>Enregistrer</Btn>
       </div>
+      {paiements.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <Btn variant="outline" onClick={() => exporterCSV("paiements", [
+            { label: "Date", cle: "date" }, { label: "Montant", cle: "montant" }, { label: "Mode", cle: "mode" }, { label: "Statut", cle: "statut" },
+          ], paiements)}>Exporter en CSV</Btn>
+        </div>
+      )}
+      {paiements.length === 0 && (
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucun paiement enregistré.</div>
+      )}
       {paiements.map(p => {
         const client = clients.find(c => c.id === p.client_id);
         return (
@@ -847,6 +943,17 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
     }
   };
 
+  const lignesExportCreances = creances.flatMap(cr => {
+    const client = clients.find(c => c.id === cr.client_id);
+    return (cr.echeances || []).map(e => ({
+      client: client?.nom || "Client supprimé",
+      numero: e.numero,
+      montant: e.montant,
+      date_echeance: e.date_echeance,
+      statut: statutEcheance(e),
+    }));
+  });
+
   if (creanceOuverte) {
     const cr = creances.find(c => c.id === creanceOuverte.id) || creanceOuverte;
     const client = clients.find(c => c.id === cr.client_id);
@@ -890,7 +997,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
       {formOuvert && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Nouvelle créance échelonnée</div>
-          <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
             <option value="">— Choisir un client —</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
@@ -902,8 +1009,15 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
           <div onClick={() => setFormOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: "0.78rem", color: C.textMuted, cursor: "pointer" }}>Annuler</div>
         </div>
       )}
+      {lignesExportCreances.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <Btn variant="outline" onClick={() => exporterCSV("creances", [
+            { label: "Client", cle: "client" }, { label: "N° échéance", cle: "numero" }, { label: "Montant", cle: "montant" }, { label: "Date échéance", cle: "date_echeance" }, { label: "Statut", cle: "statut" },
+          ], lignesExportCreances)}>Exporter en CSV</Btn>
+        </div>
+      )}
       {creances.length === 0 && !formOuvert && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>Aucune créance échelonnée pour l'instant.</div>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucune créance échelonnée pour l'instant.</div>
       )}
       {creances.map(cr => {
         const client = clients.find(c => c.id === cr.client_id);
@@ -912,7 +1026,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
         const enRetard = echeances.some(e => statutEcheance(e) === "En retard");
         const statutGlobal = payees === cr.nombre_echeances ? "Payée" : enRetard ? "En retard" : "À venir";
         return (
-          <div key={cr.id} onClick={() => setCreanceOuverte(cr)}
+          <div key={cr.id} onClick={() => setCreanceOuverte(cr)} className="gf-card-link"
             style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
@@ -1126,11 +1240,11 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
           <div style={{ textAlign: "center", fontWeight: 700 }}>MERCI POUR VOTRE VISITE</div>
         </div>
 
-        <Btn onClick={() => window.print()} variant="outline">🖨️ Imprimer (imprimante normale)</Btn>
+        <Btn onClick={() => window.print()} variant="outline">Imprimer (imprimante normale)</Btn>
         <div style={{ height: 10 }} />
-        <Btn onClick={imprimerViaRawBT} variant="outline">📶 Imprimer via RawBT (Bluetooth)</Btn>
+        <Btn onClick={imprimerViaRawBT} variant="outline">Imprimer via RawBT (Bluetooth)</Btn>
         <div style={{ height: 10 }} />
-        <Btn onClick={validerTicket} disabled={enregistrement}>{enregistrement ? "Enregistrement..." : "✅ Valider et encaisser"}</Btn>
+        <Btn onClick={validerTicket} disabled={enregistrement}>{enregistrement ? "Enregistrement..." : "Valider et encaisser"}</Btn>
       </div>
     );
   }
@@ -1151,7 +1265,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
         <div style={{ display: "flex", gap: 12 }}>
-          <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>🧮 Calculatrice</span>
+          <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Calculatrice</span>
           <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
         </div>
       </div>
@@ -1159,7 +1273,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
       {calculatriceOuverte && <Calculatrice />}
 
       {produits.length === 0 && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>
           Aucun produit encore. <span onClick={() => setGererProduits(true)} style={{ color: C.teal, cursor: "pointer" }}>Ajoute ton premier produit</span>.
         </div>
       )}
@@ -1170,7 +1284,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
             {produits.map(p => {
               const rupture = Number(p.stock_actuel) <= 0;
               return (
-                <button key={p.id} onClick={() => ajouterAuPanier(p)}
+                <button key={p.id} onClick={() => ajouterAuPanier(p)} className="gf-btn gf-card-link"
                   style={{ position: "relative", textAlign: "left", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, cursor: "pointer" }}>
                   {rupture && (
                     <span style={{ position: "absolute", top: 8, right: 8, fontSize: "0.6rem", fontWeight: 700, color: C.red, background: `${C.red}18`, padding: "2px 6px", borderRadius: 8 }}>Rupture</span>
@@ -1184,11 +1298,11 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
           </div>
 
           <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginTop: 16 }}>
-            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 10 }}>🧾 Ticket en cours</div>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 10 }}>Ticket en cours</div>
 
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
               {["Sur Place", "À emporter"].map(t => (
-                <button key={t} onClick={() => setTypeCommande(t)}
+                <button key={t} onClick={() => setTypeCommande(t)} className="gf-btn"
                   style={{ flex: 1, padding: 8, borderRadius: 8, border: `1px solid ${typeCommande === t ? C.teal : C.border}`, background: typeCommande === t ? C.teal : C.bg, color: typeCommande === t ? C.white : C.text, fontSize: "0.75rem", fontWeight: 700 }}>
                   {t}
                 </button>
@@ -1203,9 +1317,9 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
                   <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(l.prix)} × {l.quantite}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <button onClick={() => changerQuantite(l.produit_id, -1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>-</button>
+                  <button onClick={() => changerQuantite(l.produit_id, -1)} className="gf-btn" style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>-</button>
                   <span style={{ fontWeight: 700, minWidth: 16, textAlign: "center" }}>{l.quantite}</span>
-                  <button onClick={() => changerQuantite(l.produit_id, 1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>+</button>
+                  <button onClick={() => changerQuantite(l.produit_id, 1)} className="gf-btn" style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>+</button>
                   <span onClick={() => retirerDuPanier(l.produit_id)} style={{ color: C.red, fontSize: "0.7rem", cursor: "pointer", marginLeft: 4 }}>✕</span>
                 </div>
               </div>
@@ -1217,7 +1331,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
                   <span>Total</span>
                   <span style={{ color: C.teal }}>{fmt(totalPanier)}</span>
                 </div>
-                <select value={mode} onChange={e => setMode(e.target.value)}
+                <select value={mode} onChange={e => setMode(e.target.value)} className="gf-input"
                   style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
                   {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
@@ -1287,7 +1401,7 @@ function StockView({ entreprise, produits, recharger }) {
       {ajoutOuvert && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
           <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Entrée de stock</div>
-          <select value={produitId} onChange={e => setProduitId(e.target.value)} style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <select value={produitId} onChange={e => setProduitId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
             <option value="">— Choisir un produit —</option>
             {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
           </select>
@@ -1313,12 +1427,12 @@ function StockView({ entreprise, produits, recharger }) {
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Prix d'achat</label>
-                  <input type="number" defaultValue={p.prix_achat} onBlur={e => modifierProduit(p.id, "prix_achat", e.target.value)}
+                  <input type="number" defaultValue={p.prix_achat} onBlur={e => modifierProduit(p.id, "prix_achat", e.target.value)} className="gf-input"
                     style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Seuil d'alerte</label>
-                  <input type="number" defaultValue={p.seuil_alerte} onBlur={e => modifierProduit(p.id, "seuil_alerte", e.target.value)}
+                  <input type="number" defaultValue={p.seuil_alerte} onBlur={e => modifierProduit(p.id, "seuil_alerte", e.target.value)} className="gf-input"
                     style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
                 </div>
               </div>
@@ -1367,7 +1481,15 @@ function DepensesView({ entreprise, depenses, recharger }) {
         <Btn onClick={ajouter}>Enregistrer</Btn>
       </div>
 
-      {depenses.length === 0 && <div style={{ color: C.textMuted, textAlign: "center", padding: 20, fontSize: "0.85rem" }}>Aucune dépense enregistrée.</div>}
+      {depenses.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <Btn variant="outline" onClick={() => exporterCSV("depenses", [
+            { label: "Date", cle: "date" }, { label: "Catégorie", cle: "categorie" }, { label: "Description", cle: "description" }, { label: "Montant", cle: "montant" },
+          ], depenses)}>Exporter en CSV</Btn>
+        </div>
+      )}
+
+      {depenses.length === 0 && <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucune dépense enregistrée.</div>}
       {depenses.map(d => (
         <div key={d.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -1493,7 +1615,7 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
   };
 
   const partager = async () => {
-    const texte = "🚀 Découvrez PolyFinance GF, une solution simple pour gérer votre activité, vos ventes, votre stock et vos dépenses.";
+    const texte = "Découvrez PolyFinance GF, une solution simple pour gérer votre activité, vos ventes, votre stock et vos dépenses.";
     const url = "https://polyfinance.vercel.app";
     if (navigator.share) {
       try { await navigator.share({ title: "PolyFinance GF", text: texte, url }); } catch {}
@@ -1504,19 +1626,16 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
   };
 
   const ASTUCES = [
-    ["💡", "Enregistrez vos ventes au fur et à mesure", "Cela permet de garder un suivi précis de votre activité."],
-    ["💡", "Consultez régulièrement votre stock", "Vous évitez ainsi les ruptures et vous savez quels produits se vendent le mieux."],
-    ["💡", "Suivez vos dépenses", "Cela permet de mieux comprendre la rentabilité réelle de votre activité."],
-    ["💡", "Consultez le tableau de bord", "Utilisez les indicateurs pour suivre l'évolution de votre entreprise."],
-    ["💡", "Complétez votre profil", "Un profil complet facilite la gestion de votre compte."],
+    ["Enregistrez vos ventes au fur et à mesure", "Cela permet de garder un suivi précis de votre activité."],
+    ["Consultez régulièrement votre stock", "Vous évitez ainsi les ruptures et vous savez quels produits se vendent le mieux."],
+    ["Suivez vos dépenses", "Cela permet de mieux comprendre la rentabilité réelle de votre activité."],
+    ["Consultez le tableau de bord", "Utilisez les indicateurs pour suivre l'évolution de votre entreprise."],
+    ["Complétez votre profil", "Un profil complet facilite la gestion de votre compte."],
   ];
 
-  const Carte = ({ icone, titre, children, onClick }) => (
-    <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, cursor: onClick ? "pointer" : "default" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: children ? 8 : 0 }}>
-        <span style={{ fontSize: "1.1rem" }}>{icone}</span>
-        <span style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>{titre}</span>
-      </div>
+  const Carte = ({ titre, children, onClick }) => (
+    <div onClick={onClick} className={onClick ? "gf-card-link" : ""} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, cursor: onClick ? "pointer" : "default" }}>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: children ? 8 : 0 }}>{titre}</div>
       {children}
     </div>
   );
@@ -1580,39 +1699,39 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
         }
       `}</style>
       <div className="gf-parametres">
-        <Carte icone="👤" titre="Profil" onClick={() => setSousMenu("profil")}>
+        <Carte titre="Profil" onClick={() => setSousMenu("profil")}>
           <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 8 }}>
             {entreprise.nom} · {entreprise.ville}<br />{entreprise.email} · {entreprise.telephone}
           </div>
-          <Badge text={profilComplet ? "🟢 Profil complet" : "🟡 Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
+          <Badge text={profilComplet ? "Profil complet" : "Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
         </Carte>
 
-        <Carte icone="🔒" titre="Confidentialité" onClick={() => setSousMenu("confidentialite")}>
+        <Carte titre="Confidentialité" onClick={() => setSousMenu("confidentialite")}>
           <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Comment vos données sont protégées et utilisées</div>
         </Carte>
 
-        <Carte icone="📜" titre="Conditions d'utilisation" onClick={() => setSousMenu("conditions")}>
+        <Carte titre="Conditions d'utilisation" onClick={() => setSousMenu("conditions")}>
           <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Les règles d'usage de PolyFinance GF</div>
         </Carte>
 
-        <Carte icone="🛠️" titre="Service client">
+        <Carte titre="Service client">
           <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
-            Besoin d'aide ? Notre service client est disponible pour vous accompagner.<br />📧 amazouemmanuel274@gmail.com
+            Besoin d'aide ? Notre service client est disponible pour vous accompagner.<br />amazouemmanuel274@gmail.com
           </div>
           <a href="mailto:amazouemmanuel274@gmail.com" style={{ textDecoration: "none" }}>
             <Btn>Contacter le service client</Btn>
           </a>
         </Carte>
 
-        <Carte icone="🔄" titre="Mise à jour">
-          <Badge text="🟢 PolyFinance GF est à jour" color="vert" />
+        <Carte titre="Mise à jour">
+          <Badge text="PolyFinance GF est à jour" color="vert" />
         </Carte>
 
-        <Carte icone="🔑" titre="Modifier mon mot de passe" onClick={() => setSousMenu("motdepasse")}>
+        <Carte titre="Modifier mon mot de passe" onClick={() => setSousMenu("motdepasse")}>
           <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Sécurisez votre compte</div>
         </Carte>
 
-        <Carte icone="🎁" titre="Inviter quelqu'un">
+        <Carte titre="Inviter quelqu'un">
           <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
             Vous connaissez un entrepreneur, un restaurateur ou un commerçant qui pourrait utiliser PolyFinance GF ? Invitez-le à découvrir la plateforme.
           </div>
@@ -1620,10 +1739,10 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
         </Carte>
       </div>
 
-      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", margin: "20px 0 12px" }}>📖 Guide — Astuces pour mieux utiliser PolyFinance GF</div>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", margin: "20px 0 12px" }}>Guide — Astuces pour mieux utiliser PolyFinance GF</div>
       <div className="gf-parametres">
-        {ASTUCES.map(([icone, titre, texte], i) => (
-          <Carte key={i} icone={icone} titre={titre}>
+        {ASTUCES.map(([titre, texte], i) => (
+          <Carte key={i} titre={titre}>
             <div style={{ fontSize: "0.8rem", color: C.textMuted }}>{texte}</div>
           </Carte>
         ))}
@@ -1631,6 +1750,20 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
     </div>
   );
 }
+
+// ============================================================
+// ESPACE ENTREPRISE — menu latéral sur ordinateur, onglets sur mobile
+// ============================================================
+const ONGLETS = [
+  ["dashboard", "Tableau de bord"],
+  ["clients", "Clients"],
+  ["paiements", "Paiements"],
+  ["creances", "Créances"],
+  ["ventes", "Ventes"],
+  ["stock", "Stock"],
+  ["depenses", "Dépenses"],
+  ["parametres", "Paramètres"],
+];
 
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
@@ -1661,32 +1794,73 @@ function EspaceEntreprise({ entreprise, onLogout }) {
 
   useEffect(() => { recharger(); }, []);
 
+  const contenu = (
+    <>
+      {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
+      {tab === "clients" && <ClientsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
+      {tab === "paiements" && <PaiementsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} recharger={recharger} />}
+      {tab === "creances" && <CreancesView entreprise={entrepriseLocale} clients={clients} creances={creances} recharger={recharger} />}
+      {tab === "ventes" && <VentesView entreprise={entrepriseLocale} produits={produits} ventes={ventes} recharger={recharger} />}
+      {tab === "stock" && <StockView entreprise={entrepriseLocale} produits={produits} recharger={recharger} />}
+      {tab === "depenses" && <DepensesView entreprise={entrepriseLocale} depenses={depenses} recharger={recharger} />}
+      {tab === "parametres" && <ParametresView entreprise={entrepriseLocale} onProfilMisAJour={recharger} />}
+    </>
+  );
+
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entrepriseLocale.nom}</div>
-          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entrepriseLocale.statut} {entrepriseLocale.date_expiration ? `· jusqu'au ${entrepriseLocale.date_expiration}` : ""}</div>
-        </div>
-        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
-      </div>
-      <div style={{ display: "flex", background: C.white, borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
-        {[["dashboard", "Tableau de bord"], ["clients", "Clients"], ["paiements", "Paiements"], ["creances", "Créances"], ["ventes", "Ventes"], ["stock", "Stock"], ["depenses", "Dépenses"], ["parametres", "Paramètres"]].map(([id, label]) => (
-          <div key={id} onClick={() => setTab(id)}
-            style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 14px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
-            {label}
+    <div>
+      <style>{`
+        .gf-layout { display: block; max-width: 1300px; margin: 0 auto; }
+        .gf-sidebar { display: none; }
+        .gf-tabs-mobile { display: flex; background: ${C.white}; border-bottom: 1px solid ${C.border}; overflow-x: auto; }
+        @media (min-width: 900px) {
+          .gf-layout { display: flex; align-items: flex-start; }
+          .gf-sidebar { display: flex; flex-direction: column; width: 220px; flex-shrink: 0; min-height: calc(100vh - 20px); background: ${C.navyDark}; }
+          .gf-tabs-mobile { display: none; }
+          .gf-main { flex: 1; min-width: 0; }
+        }
+      `}</style>
+
+      <div className="gf-layout">
+        <div className="gf-sidebar">
+          <div style={{ padding: "22px 18px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ color: C.white, fontWeight: 800, fontSize: "1rem", letterSpacing: 0.3 }}>PolyFinance <span style={{ color: C.tealLight }}>GF</span></div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem", marginTop: 6, lineHeight: 1.4 }}>{entrepriseLocale.nom}</div>
+            <div style={{ marginTop: 6 }}><Badge text={entrepriseLocale.statut} color={entrepriseLocale.statut === "Premium" ? "vert" : "ambre"} /></div>
           </div>
-        ))}
-      </div>
-      <div style={{ padding: 16 }}>
-        {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
-        {tab === "clients" && <ClientsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
-        {tab === "paiements" && <PaiementsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} recharger={recharger} />}
-        {tab === "creances" && <CreancesView entreprise={entrepriseLocale} clients={clients} creances={creances} recharger={recharger} />}
-        {tab === "ventes" && <VentesView entreprise={entrepriseLocale} produits={produits} ventes={ventes} recharger={recharger} />}
-        {tab === "stock" && <StockView entreprise={entrepriseLocale} produits={produits} recharger={recharger} />}
-        {tab === "depenses" && <DepensesView entreprise={entrepriseLocale} depenses={depenses} recharger={recharger} />}
-        {tab === "parametres" && <ParametresView entreprise={entrepriseLocale} onProfilMisAJour={recharger} />}
+          <nav style={{ flex: 1, padding: "12px 10px" }}>
+            {ONGLETS.map(([id, label]) => (
+              <div key={id} onClick={() => setTab(id)}
+                style={{ padding: "10px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", fontSize: "0.85rem", fontWeight: tab === id ? 700 : 500, color: tab === id ? C.white : "rgba(255,255,255,0.6)", background: tab === id ? C.teal : "transparent" }}>
+                {label}
+              </div>
+            ))}
+          </nav>
+          <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.78rem", cursor: "pointer" }}>Déconnexion</span>
+          </div>
+        </div>
+
+        <div className="gf-main">
+          <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entrepriseLocale.nom}</div>
+              <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entrepriseLocale.statut} {entrepriseLocale.date_expiration ? `· jusqu'au ${entrepriseLocale.date_expiration}` : ""}</div>
+            </div>
+            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+          </div>
+          <div className="gf-tabs-mobile">
+            {ONGLETS.map(([id, label]) => (
+              <div key={id} onClick={() => setTab(id)}
+                style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 14px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
+                {label}
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: 16 }}>
+            {contenu}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1738,15 +1912,22 @@ export default function PolyFinanceGF() {
     setEcran("login");
   };
 
-  if (ecran === "chargement") return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>;
-  if (ecran === "login") return <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} onGoForgot={() => setEcran("mdp-oublie")} />;
-  if (ecran === "mdp-oublie") return <MotDePasseOublie onGoLogin={() => setEcran("login")} />;
-  if (ecran === "reinitialiser-mdp") return <ReinitialiserMotDePasse onTermine={() => { setEcran("login"); }} />;
-  if (ecran === "signup") return <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
-  if (ecran === "attente") return <EnAttente onGoLogin={() => setEcran("login")} />;
-  if (ecran === "attente-connecte") return <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
-  if (ecran === "expire") return <AccesExpire entreprise={entreprise} onLogout={seDeconnecter} />;
-  if (ecran === "admin") return <AdminDashboard onLogout={seDeconnecter} />;
-  if (ecran === "app" && entreprise) return <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
-  return null;
+  let contenu = null;
+  if (ecran === "chargement") contenu = <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Chargement...</div>;
+  else if (ecran === "login") contenu = <Connexion onGoSignup={() => setEcran("signup")} onLoggedIn={chargerEntreprise} onGoForgot={() => setEcran("mdp-oublie")} />;
+  else if (ecran === "mdp-oublie") contenu = <MotDePasseOublie onGoLogin={() => setEcran("login")} />;
+  else if (ecran === "reinitialiser-mdp") contenu = <ReinitialiserMotDePasse onTermine={() => { setEcran("login"); }} />;
+  else if (ecran === "signup") contenu = <Inscription onGoLogin={() => setEcran("login")} onInscrit={(plan) => setEcran(plan === "gratuit" ? "login" : "attente")} />;
+  else if (ecran === "attente") contenu = <EnAttente onGoLogin={() => setEcran("login")} />;
+  else if (ecran === "attente-connecte") contenu = <EnAttenteConnecte entreprise={entreprise} onLogout={seDeconnecter} />;
+  else if (ecran === "expire") contenu = <AccesExpire entreprise={entreprise} onLogout={seDeconnecter} />;
+  else if (ecran === "admin") contenu = <AdminDashboard onLogout={seDeconnecter} />;
+  else if (ecran === "app" && entreprise) contenu = <EspaceEntreprise entreprise={entreprise} onLogout={seDeconnecter} />;
+
+  return (
+    <>
+      <style>{GLOBAL_CSS}</style>
+      {contenu}
+    </>
+  );
 }

@@ -18,6 +18,11 @@ const PLANS = [
 ];
 
 const MODES_PAIEMENT = ["Espèces", "Wave", "Orange Money", "Virement"];
+const MDP_REGEX = /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,}$/;
+const MDP_AIDE = "Au moins 6 caractères, un chiffre et un caractère spécial (ex: # ! *).";
+
+// Échelle typographique unique — réutilisée partout
+const T = { micro: "11px", small: "12.5px", body: "14px", sub: "15.5px", h3: "17px", h2: "20px", h1: "24px" };
 
 const GLOBAL_CSS = `
   .gf-input { transition: border-color .15s ease, box-shadow .15s ease; }
@@ -29,6 +34,29 @@ const GLOBAL_CSS = `
   .gf-card-link { transition: border-color .15s ease, box-shadow .15s ease; }
   .gf-card-link:hover { border-color: ${C.teal}80 !important; box-shadow: 0 2px 8px rgba(27,77,110,0.08); }
 `;
+
+// ============================================================
+// ICÔNES — SVG inline simples, sans dépendance externe
+// ============================================================
+function Icon({ name, size = 18 }) {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    clients: <><circle cx="12" cy="8" r="3.3" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></>,
+    paiements: <><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18" /></>,
+    creances: <><path d="M6 3h9l4 4v14H6z" /><path d="M9 11h6M9 15h6" /></>,
+    caisse: <><path d="M4 9h16l-1.5 10.5a2 2 0 0 1-2 1.5H7.5a2 2 0 0 1-2-1.5L4 9Z" /><path d="M8 9V7a4 4 0 0 1 8 0v2" /></>,
+    stock: <><path d="M3 7l9-4 9 4-9 4-9-4Z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /></>,
+    depenses: <><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></>,
+    rapports: <><path d="M4 20V10M12 20V4M20 20v-7" /><path d="M2 20h20" /></>,
+    parametres: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" /></>,
+    export: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14" /></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name] || null}
+    </svg>
+  );
+}
 
 function fmt(v) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(Number(v) || 0)) + " F";
@@ -99,8 +127,8 @@ function exporterCSV(nomFichier, colonnes, lignes) {
 function Input({ label, ...props }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      {label && <label style={{ color: C.textMuted, fontSize: "0.75rem", display: "block", marginBottom: 5 }}>{label}</label>}
-      <input {...props} className="gf-input" style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: props.disabled ? "#eee" : C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: "0.9rem", outline: "none" }} />
+      {label && <label style={{ color: C.textMuted, fontSize: T.small, display: "block", marginBottom: 5 }}>{label}</label>}
+      <input {...props} className="gf-input" style={{ width: "100%", padding: "10px 13px", boxSizing: "border-box", background: props.disabled ? "#eee" : C.bg, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: T.body, outline: "none" }} />
     </div>
   );
 }
@@ -109,7 +137,7 @@ function Btn({ children, onClick, disabled, variant = "primary" }) {
   const bg = variant === "primary" ? `linear-gradient(135deg,${C.teal},${C.tealLight})` : "transparent";
   return (
     <button onClick={onClick} disabled={disabled} className="gf-btn"
-      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 10, color: variant === "outline" ? C.text : C.white, fontSize: "0.9rem", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" }}>
+      style={{ width: "100%", padding: 13, background: disabled ? "#ccc" : bg, border: variant === "outline" ? `1px solid ${C.border}` : "none", borderRadius: 10, color: variant === "outline" ? C.text : C.white, fontSize: T.body, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       {children}
     </button>
   );
@@ -118,7 +146,29 @@ function Btn({ children, onClick, disabled, variant = "primary" }) {
 function Badge({ text, color }) {
   const map = { vert: C.green, rouge: C.red, ambre: C.amber, gris: C.textMuted, violet: C.purple };
   const c = map[color] || C.textMuted;
-  return <span style={{ fontSize: "0.68rem", fontWeight: 700, color: c, background: `${c}18`, padding: "3px 8px", borderRadius: 20 }}>{text}</span>;
+  return <span style={{ fontSize: T.micro, fontWeight: 700, color: c, background: `${c}18`, padding: "3px 8px", borderRadius: 20 }}>{text}</span>;
+}
+
+
+// Suppression sûre : confirmation + message clair si ça échoue
+async function supprimerLigne(table, id, message, recharger) {
+  if (!window.confirm(message)) return false;
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) {
+    window.alert("Suppression impossible. Vérifie ta connexion et réessaie.");
+    return false;
+  }
+  if (recharger) await recharger();
+  return true;
+}
+
+function LienSupprimer({ onClick, label = "Supprimer" }) {
+  return (
+    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{ background: "transparent", border: `1px solid ${C.red}55`, color: C.red, fontSize: T.small, fontWeight: 700, padding: "8px 12px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+      {label}
+    </button>
+  );
 }
 
 // ============================================================
@@ -150,16 +200,16 @@ function Calculatrice() {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Calculatrice</div>
-        <span onClick={() => appuyer("⌫")} style={{ color: C.textMuted, fontSize: "0.75rem", cursor: "pointer" }}>⌫ Effacer</span>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub }}>Calculatrice</div>
+        <span onClick={() => appuyer("⌫")} style={{ color: C.textMuted, fontSize: T.small, cursor: "pointer" }}>⌫ Effacer</span>
       </div>
-      <div style={{ background: C.bg, borderRadius: 8, padding: 12, textAlign: "right", fontSize: "1.15rem", fontWeight: 700, marginBottom: 10, minHeight: 30, overflowX: "auto", whiteSpace: "nowrap" }}>
+      <div style={{ background: C.bg, borderRadius: 8, padding: 12, textAlign: "right", fontSize: T.h3, fontWeight: 700, marginBottom: 10, minHeight: 30, overflowX: "auto", whiteSpace: "nowrap" }}>
         {resultat !== null ? (typeof resultat === "number" ? resultat.toLocaleString("fr-FR") : resultat) : (expression || "0")}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {touches.map(k => (
           <button key={k} onClick={() => appuyer(k)} className="gf-btn"
-            style={{ padding: 14, borderRadius: 8, border: `1px solid ${C.border}`, background: speciales.includes(k) ? C.teal : C.bg, color: speciales.includes(k) ? C.white : C.text, fontWeight: 700, fontSize: "1rem", cursor: "pointer" }}>
+            style={{ padding: 14, borderRadius: 8, border: `1px solid ${C.border}`, background: speciales.includes(k) ? C.teal : C.bg, color: speciales.includes(k) ? C.white : C.text, fontWeight: 700, fontSize: T.sub, cursor: "pointer" }}>
             {k}
           </button>
         ))}
@@ -174,60 +224,60 @@ function Calculatrice() {
 function EcranPaiementRequis({ icone, titre, sousTitre, messageWhatsapp, lienSecondaire, onLogout }) {
   const lienWhatsapp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(messageWhatsapp)}`;
 
-  const Etape = ({ numero, children }) => (
-    <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.navy, color: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem", flexShrink: 0 }}>{numero}</span>
+  const Etape = ({ numero }) => (
+    <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.navy, color: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: T.small, flexShrink: 0 }}>{numero}</span>
   );
 
   return (
     <div style={{ maxWidth: 440, margin: "0 auto", padding: "32px 20px", textAlign: "center" }}>
       <div style={{ fontSize: "2.4rem", marginBottom: 10 }}>{icone}</div>
-      <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.25rem", marginBottom: 6 }}>{titre}</div>
-      <div style={{ color: C.textMuted, fontSize: "0.85rem", marginBottom: 22 }}>{sousTitre}</div>
+      <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h1, marginBottom: 6 }}>{titre}</div>
+      <div style={{ color: C.textMuted, fontSize: T.body, marginBottom: 22 }}>{sousTitre}</div>
 
       <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}30`, borderRadius: 12, padding: 16, marginBottom: 12, display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
         <span style={{ fontSize: "1.4rem" }}>👑</span>
         <div>
-          <div style={{ color: C.navy, fontWeight: 700, fontSize: "0.85rem" }}>Passez en Premium</div>
-          <div style={{ color: C.teal, fontWeight: 800, fontSize: "1.1rem" }}>8 000 F <span style={{ color: C.textMuted, fontWeight: 500, fontSize: "0.78rem" }}>/ 30 jours</span></div>
+          <div style={{ color: C.navy, fontWeight: 700, fontSize: T.body }}>Passez en Premium</div>
+          <div style={{ color: C.teal, fontWeight: 800, fontSize: T.h3 }}>8 000 F <span style={{ color: C.textMuted, fontWeight: 500, fontSize: T.small }}>/ 30 jours</span></div>
         </div>
       </div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, textAlign: "left" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <Etape numero="1" />
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Payez via Wave ou Orange Money</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.body }}>Payez via Wave ou Orange Money</div>
         </div>
-        <div style={{ color: C.textMuted, fontSize: "0.75rem", marginBottom: 6 }}>Au numéro :</div>
-        <div style={{ background: C.navy, color: C.white, borderRadius: 9, padding: "9px 14px", fontWeight: 800, fontSize: "0.95rem", display: "inline-block", marginBottom: 10 }}>
+        <div style={{ color: C.textMuted, fontSize: T.small, marginBottom: 6 }}>Au numéro :</div>
+        <div style={{ background: C.navy, color: C.white, borderRadius: 9, padding: "9px 14px", fontWeight: 800, fontSize: T.sub, display: "inline-block", marginBottom: 10 }}>
           07 59 57 03 27
         </div>
         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-          <span style={{ background: "#1B9CFC18", color: "#0b7fd1", fontWeight: 700, fontSize: "0.7rem", padding: "4px 10px", borderRadius: 7 }}>Wave</span>
-          <span style={{ background: "#F4770018", color: "#c05e00", fontWeight: 700, fontSize: "0.7rem", padding: "4px 10px", borderRadius: 7 }}>Orange Money</span>
+          <span style={{ background: "#1B9CFC18", color: "#0b7fd1", fontWeight: 700, fontSize: T.micro, padding: "4px 10px", borderRadius: 7 }}>Wave</span>
+          <span style={{ background: "#F4770018", color: "#c05e00", fontWeight: 700, fontSize: T.micro, padding: "4px 10px", borderRadius: 7 }}>Orange Money</span>
         </div>
-        <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>Montant : <strong style={{ color: C.text }}>8 000 F</strong> · Durée : <strong style={{ color: C.text }}>30 jours</strong></div>
+        <div style={{ color: C.textMuted, fontSize: T.small }}>Montant : <strong style={{ color: C.text }}>8 000 F</strong> · Durée : <strong style={{ color: C.text }}>30 jours</strong></div>
       </div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 14, textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}>
         <Etape numero="2" />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem" }}>Envoyez votre preuve de paiement</div>
-          <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>sur WhatsApp</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.body }}>Envoyez votre preuve de paiement</div>
+          <div style={{ color: C.textMuted, fontSize: T.small }}>sur WhatsApp</div>
         </div>
       </div>
 
       <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block", marginBottom: 12 }}>
-        <div className="gf-btn" style={{ background: "#25D366", borderRadius: 10, padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: C.white, fontWeight: 700, fontSize: "0.88rem" }}>
+        <div className="gf-btn" style={{ background: "#25D366", borderRadius: 10, padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: C.white, fontWeight: 700, fontSize: T.body }}>
           Envoyer la preuve sur WhatsApp →
         </div>
       </a>
 
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 20 }}>
-        <span style={{ color: C.textMuted, fontSize: "0.72rem" }}>Activation après vérification du paiement.</span>
+        <span style={{ color: C.textMuted, fontSize: T.small }}>Activation après vérification du paiement.</span>
       </div>
 
       {lienSecondaire}
-      {onLogout && <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Déconnexion</span>}
+      {onLogout && <span onClick={onLogout} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: T.body }}>Déconnexion</span>}
     </div>
   );
 }
@@ -254,17 +304,17 @@ function Connexion({ onGoSignup, onLoggedIn, onGoForgot }) {
   return (
     <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>PolyFinance <span style={{ color: C.teal }}>GF</span></div>
-        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Connexion à votre espace entreprise</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2 }}>PolyFinance <span style={{ color: C.teal }}>GF</span></div>
+        <div style={{ color: C.textMuted, fontSize: T.body, marginTop: 4 }}>Connexion à votre espace entreprise</div>
       </div>
       <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
       <Input label="Mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="••••••••" />
-      <div onClick={onGoForgot} style={{ textAlign: "right", color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", marginBottom: 14, marginTop: -6 }}>
+      <div onClick={onGoForgot} style={{ textAlign: "right", color: C.teal, fontSize: T.small, fontWeight: 700, cursor: "pointer", marginBottom: 14, marginTop: -6 }}>
         Mot de passe oublié ?
       </div>
-      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 12 }}>{erreur}</div>}
       <Btn onClick={connecter} disabled={chargement}>{chargement ? "Connexion..." : "Se connecter"}</Btn>
-      <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
+      <div style={{ textAlign: "center", marginTop: 16, fontSize: T.body, color: C.textMuted }}>
         Pas encore de compte ? <span onClick={onGoSignup} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Créer un compte</span>
       </div>
     </div>
@@ -296,11 +346,11 @@ function MotDePasseOublie({ onGoLogin }) {
     return (
       <div style={{ padding: 24, textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
         <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>📧</div>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.1rem", marginBottom: 8 }}>Lien envoyé</div>
-        <div style={{ color: C.textMuted, fontSize: "0.85rem", lineHeight: 1.6, marginBottom: 20 }}>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2, marginBottom: 8 }}>Lien envoyé</div>
+        <div style={{ color: C.textMuted, fontSize: T.body, lineHeight: 1.6, marginBottom: 20 }}>
           Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé. Clique dessus pour choisir un nouveau mot de passe.
         </div>
-        <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}>Retour à la connexion</div>
+        <div onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: T.body }}>Retour à la connexion</div>
       </div>
     );
   }
@@ -308,13 +358,13 @@ function MotDePasseOublie({ onGoLogin }) {
   return (
     <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Mot de passe oublié</div>
-        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Entre ton email, on t'envoie un lien pour le réinitialiser</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2 }}>Mot de passe oublié</div>
+        <div style={{ color: C.textMuted, fontSize: T.body, marginTop: 4 }}>Entre ton email, on t'envoie un lien pour le réinitialiser</div>
       </div>
       <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
-      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 12 }}>{erreur}</div>}
       <Btn onClick={envoyer} disabled={chargement}>{chargement ? "Envoi..." : "Envoyer le lien"}</Btn>
-      <div onClick={onGoLogin} style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted, cursor: "pointer" }}>← Retour à la connexion</div>
+      <div onClick={onGoLogin} style={{ textAlign: "center", marginTop: 16, fontSize: T.body, color: C.textMuted, cursor: "pointer" }}>← Retour à la connexion</div>
     </div>
   );
 }
@@ -332,7 +382,7 @@ function ReinitialiserMotDePasse({ onTermine }) {
     setErreur("");
     if (!nouveauMdp || !confirmMdp) { setErreur("Remplis tous les champs."); return; }
     if (nouveauMdp !== confirmMdp) { setErreur("Les mots de passe ne correspondent pas."); return; }
-    if (nouveauMdp.length < 6) { setErreur("Le mot de passe doit faire au moins 6 caractères."); return; }
+    if (!MDP_REGEX.test(nouveauMdp)) { setErreur(MDP_AIDE); return; }
     setChargement(true);
     const { error } = await supabase.auth.updateUser({ password: nouveauMdp });
     setChargement(false);
@@ -343,12 +393,13 @@ function ReinitialiserMotDePasse({ onTermine }) {
   return (
     <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Réinitialiser votre mot de passe</div>
-        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Choisis un nouveau mot de passe</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2 }}>Réinitialiser votre mot de passe</div>
+        <div style={{ color: C.textMuted, fontSize: T.body, marginTop: 4 }}>Choisis un nouveau mot de passe</div>
       </div>
       <Input label="Nouveau mot de passe" type="password" value={nouveauMdp} onChange={e => setNouveauMdp(e.target.value)} placeholder="Min. 6 caractères" />
       <Input label="Confirmation" type="password" value={confirmMdp} onChange={e => setConfirmMdp(e.target.value)} placeholder="••••••••" />
-      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+      <div style={{ color: C.textMuted, fontSize: T.small, marginBottom: 12 }}>{MDP_AIDE}</div>
+      {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 12 }}>{erreur}</div>}
       <Btn onClick={valider} disabled={chargement}>{chargement ? "Enregistrement..." : "Enregistrer le nouveau mot de passe"}</Btn>
     </div>
   );
@@ -371,7 +422,7 @@ function Inscription({ onGoLogin, onInscrit }) {
   const [chargement, setChargement] = useState(false);
 
   const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const motDePasseValide = /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,}$/.test(motDePasse);
+  const motDePasseValide = MDP_REGEX.test(motDePasse);
   const pretEtape1 = nomEntreprise && ville && responsable && telephone && emailValide && motDePasseValide && motDePasse === confirmMotDePasse;
 
   const creerCompte = async () => {
@@ -411,8 +462,8 @@ function Inscription({ onGoLogin, onInscrit }) {
     return (
       <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Créer votre compte entreprise</div>
-          <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 1 sur 2</div>
+          <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2 }}>Créer votre compte entreprise</div>
+          <div style={{ color: C.textMuted, fontSize: T.body, marginTop: 4 }}>Étape 1 sur 2</div>
         </div>
         <Input label="Nom de l'entreprise" value={nomEntreprise} onChange={e => setNomEntreprise(e.target.value)} placeholder="Ets Koffi & Fils" />
         <Input label="Ville" value={ville} onChange={e => setVille(e.target.value)} placeholder="Bouaké" />
@@ -421,12 +472,10 @@ function Inscription({ onGoLogin, onInscrit }) {
         <Input label="Email professionnel" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.ci" />
         <Input label="Créer un mot de passe" type="password" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="Min. 6 caractères" />
         <Input label="Confirmation du mot de passe" type="password" value={confirmMotDePasse} onChange={e => setConfirmMotDePasse(e.target.value)} placeholder="••••••••" />
-        <div style={{ color: C.textMuted, fontSize: "0.72rem", marginBottom: 12 }}>
-          Le mot de passe doit contenir au moins 6 caractères, un chiffre et un caractère spécial (ex: # ! *).
-        </div>
-        {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 12 }}>{erreur}</div>}
+        <div style={{ color: C.textMuted, fontSize: T.small, marginBottom: 12 }}>{MDP_AIDE}</div>
+        {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 12 }}>{erreur}</div>}
         <Btn onClick={() => pretEtape1 ? setEtape(2) : setErreur("Vérifie tous les champs, et que le mot de passe respecte le format demandé.")}>Continuer</Btn>
-        <div style={{ textAlign: "center", marginTop: 16, fontSize: "0.82rem", color: C.textMuted }}>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: T.body, color: C.textMuted }}>
           Déjà un compte ? <span onClick={onGoLogin} style={{ color: C.teal, fontWeight: 700, cursor: "pointer" }}>Se connecter</span>
         </div>
       </div>
@@ -436,26 +485,26 @@ function Inscription({ onGoLogin, onInscrit }) {
   return (
     <div style={{ padding: 20, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <div style={{ color: C.navy, fontWeight: 800, fontSize: "1.2rem" }}>Choisissez votre abonnement</div>
-        <div style={{ color: C.textMuted, fontSize: "0.78rem", marginTop: 4 }}>Étape 2 sur 2 — {nomEntreprise}</div>
+        <div style={{ color: C.navy, fontWeight: 800, fontSize: T.h2 }}>Choisissez votre abonnement</div>
+        <div style={{ color: C.textMuted, fontSize: T.body, marginTop: 4 }}>Étape 2 sur 2 — {nomEntreprise}</div>
       </div>
       {PLANS.map(p => (
         <div key={p.id} onClick={() => setPlan(p.id)}
           style={{ border: `2px solid ${plan === p.id ? C.teal : C.border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>{p.nom}</div>
-            <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.periode}</div>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub }}>{p.nom}</div>
+            <div style={{ color: C.textMuted, fontSize: T.small }}>{p.periode}</div>
           </div>
           <div style={{ fontWeight: 800, color: C.teal }}>{p.prix}</div>
         </div>
       ))}
-      {erreur && <div style={{ color: C.red, fontSize: "0.78rem", margin: "12px 0" }}>{erreur}</div>}
+      {erreur && <div style={{ color: C.red, fontSize: T.small, margin: "12px 0" }}>{erreur}</div>}
       <div style={{ marginTop: 16 }}>
         <Btn onClick={creerCompte} disabled={chargement}>{chargement ? "Création..." : (plan === "gratuit" ? "Activer mon compte" : "Payer et activer")}</Btn>
       </div>
-      <div onClick={() => setEtape(1)} style={{ textAlign: "center", marginTop: 14, fontSize: "0.8rem", color: C.textMuted, cursor: "pointer" }}>← Retour</div>
+      <div onClick={() => setEtape(1)} style={{ textAlign: "center", marginTop: 14, fontSize: T.body, color: C.textMuted, cursor: "pointer" }}>← Retour</div>
       {plan !== "gratuit" && (
-        <div style={{ fontSize: "0.72rem", color: C.textMuted, textAlign: "center", marginTop: 10 }}>
+        <div style={{ fontSize: T.small, color: C.textMuted, textAlign: "center", marginTop: 10 }}>
           Un email de confirmation vous sera envoyé. Votre accès Premium ne sera activé qu'après vérification du paiement.
         </div>
       )}
@@ -464,7 +513,7 @@ function Inscription({ onGoLogin, onInscrit }) {
 }
 
 // ============================================================
-// ÉCRAN : Attente de vérification (juste après inscription)
+// ÉCRAN : Attente de vérification
 // ============================================================
 function EnAttente({ onGoLogin }) {
   return (
@@ -473,7 +522,7 @@ function EnAttente({ onGoLogin }) {
       titre="Vérifiez votre email"
       sousTitre="Confirmez votre adresse, puis réglez votre accès Premium."
       messageWhatsapp="Bonjour, je viens de créer mon compte PolyFinance GF et je souhaite activer mon accès Premium. Voici ma preuve de paiement."
-      lienSecondaire={<div onClick={onGoLogin} style={{ color: C.textMuted, fontSize: "0.8rem", cursor: "pointer", marginBottom: 14 }}>← Retour à la connexion</div>}
+      lienSecondaire={<div onClick={onGoLogin} style={{ color: C.textMuted, fontSize: T.body, cursor: "pointer", marginBottom: 14 }}>← Retour à la connexion</div>}
     />
   );
 }
@@ -536,10 +585,10 @@ function AdminDashboard({ onLogout }) {
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>Espace Administrateur</div>
-          <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>PolyFinance GF</div>
+          <div style={{ color: C.white, fontWeight: 700, fontSize: T.sub }}>Espace Administrateur</div>
+          <div style={{ color: C.tealLight, fontSize: T.micro }}>PolyFinance GF</div>
         </div>
-        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+        <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: T.small, cursor: "pointer" }}>Déconnexion</span>
       </div>
       <div style={{ padding: 16 }}>
         {chargement && <div style={{ color: C.textMuted, textAlign: "center", padding: 20 }}>Chargement...</div>}
@@ -550,12 +599,12 @@ function AdminDashboard({ onLogout }) {
           <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.text }}>{e.nom}</div>
-                <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{e.responsable} · {e.telephone}</div>
+                <div style={{ fontWeight: 700, fontSize: T.sub, color: C.text }}>{e.nom}</div>
+                <div style={{ color: C.textMuted, fontSize: T.small }}>{e.responsable} · {e.telephone}</div>
               </div>
               <Badge text={e.statut} color={couleurStatut(e.statut)} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: T.small, color: C.textMuted, marginBottom: e.statut === "En attente" ? 10 : 0 }}>
               <span>Plan : {e.plan}</span>
               <span>{e.date_expiration ? `Expire le ${e.date_expiration}` : "Pas d'expiration"}</span>
             </div>
@@ -572,168 +621,463 @@ function AdminDashboard({ onLogout }) {
 // ============================================================
 // TABLEAU DE BORD
 // ============================================================
-function TableauDeBord({ clients, paiements, creances, ventes, produits, depenses }) {
-  const aujourdHui = new Date().toISOString().slice(0, 10);
-  const debutSem = debutSemaineISO();
-  const debutMois = debutMoisISO();
-  const debutAnnee = debutAnneeISO();
+function jourISO(decalage = 0) {
+  return new Date(Date.now() + decalage * 86400000).toISOString().slice(0, 10);
+}
 
-  const revenuPeriode = (depuis) => {
-    const v = ventes.filter(x => x.date >= depuis).reduce((s, x) => s + Number(x.montant), 0);
-    const p = paiements.filter(x => x.statut === "Payé" && x.date >= depuis).reduce((s, x) => s + Number(x.montant), 0);
-    return v + p;
-  };
-  const nbVentesPeriode = (depuis) => ventes.filter(x => x.date >= depuis).length;
+const JOURS_COURTS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+function libelleJourCourt(iso) {
+  return JOURS_COURTS[new Date(iso + "T00:00:00Z").getUTCDay()];
+}
 
-  const caJour = revenuPeriode(aujourdHui);
-  const caSemaine = revenuPeriode(debutSem);
-  const caMois = revenuPeriode(debutMois);
-  const caAnnee = revenuPeriode(debutAnnee);
+function fmtCourt(v) {
+  const n = Number(v) || 0;
+  const a = Math.abs(n);
+  if (a >= 1000000) return (n / 1000000).toFixed(1).replace(".", ",") + " M";
+  if (a >= 1000) return Math.round(n / 1000) + " k";
+  return String(Math.round(n));
+}
 
-  const depensesJour = depenses.filter(d => d.date === aujourdHui).reduce((s, d) => s + Number(d.montant), 0);
-  const depensesTotal = depenses.reduce((s, d) => s + Number(d.montant), 0);
-  const enAttentePaiements = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + Number(p.montant), 0);
-  const enAttenteCreances = creances.reduce((s, cr) => s + (cr.echeances || []).filter(e => !e.paye).reduce((s2, e) => s2 + Number(e.montant), 0), 0);
-  const enAttente = enAttentePaiements + enAttenteCreances;
+function lienWhatsapp(tel, msg) {
+  let n = String(tel || "").replace(/\D/g, "");
+  if (!n) return null;
+  if (n.length <= 10) n = "225" + n;
+  return `https://wa.me/${n}?text=${encodeURIComponent(msg)}`;
+}
 
-  const totalEncaisseGlobal = revenuPeriode("2000-01-01");
-  const solde = totalEncaisseGlobal - depensesTotal;
+const COULEURS_MODE = { "Espèces": "#10b981", "Wave": "#2563eb", "Orange Money": "#F47B2A", "Virement": "#8b5cf6" };
 
-  const beneficeJour = ventes.filter(v => v.date === aujourdHui).reduce((s, v) => {
-    const p = produits.find(pr => pr.id === v.produit_id);
-    const cout = (p?.prix_achat || 0) * v.quantite;
-    return s + (Number(v.montant) - cout);
-  }, 0);
+const PERIODES = {
+  jour: { n: 1, libelle: "Aujourd'hui", compare: "hier" },
+  semaine: { n: 7, libelle: "7 jours", compare: "les 7 jours précédents" },
+  mois: { n: 30, libelle: "30 jours", compare: "les 30 jours précédents" },
+};
 
-  const stockFaible = produits.filter(p => Number(p.stock_actuel) <= Number(p.seuil_alerte));
+const DASH_CSS = `
+  .gf-d-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+  .gf-d-kpi { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (min-width: 900px) {
+    .gf-d-grid { grid-template-columns: repeat(12, 1fr); }
+    .gf-d-grid > .d4 { grid-column: span 4; }
+    .gf-d-grid > .d6 { grid-column: span 6; }
+    .gf-d-grid > .d8 { grid-column: span 8; }
+    .gf-d-kpi { grid-template-columns: repeat(4, 1fr); }
+  }
+  .gf-d-ligne { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid ${C.border}; font-size: ${T.body}; }
+  .gf-d-ligne:last-child { border-bottom: none; }
+  .gf-d-lien { color: ${C.teal}; font-weight: 700; font-size: ${T.small}; text-decoration: none; cursor: pointer; white-space: nowrap; }
+`;
 
-  const produitsPlusVendus = Object.values(
-    ventes.reduce((acc, v) => {
-      if (!acc[v.produit_id]) acc[v.produit_id] = { produit_id: v.produit_id, quantite: 0 };
-      acc[v.produit_id].quantite += Number(v.quantite);
-      return acc;
-    }, {})
-  ).sort((a, b) => b.quantite - a.quantite).slice(0, 3);
-
-  const repartitionPaiements = MODES_PAIEMENT.map(mode => ({
-    mode,
-    montant: ventes.filter(v => v.mode === mode).reduce((s, v) => s + Number(v.montant), 0),
-  })).filter(r => r.montant > 0);
-
-  const enRetard = clients.filter(c =>
-    paiements.some(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui) ||
-    creances.some(cr => cr.client_id === c.id && (cr.echeances || []).some(e => statutEcheance(e) === "En retard"))
-  ).length;
-
+function Panneau({ titre, droite, children }) {
   return (
-    <div>
-      <style>{`
-        .gf-grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        .gf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        @media (min-width: 820px) {
-          .gf-grid4 { grid-template-columns: repeat(4, 1fr); }
-          .gf-grid2 { grid-template-columns: repeat(2, 1fr); max-width: 500px; }
-        }
-      `}</style>
-
-      <div className="gf-grid4">
-        {[
-          ["CA aujourd'hui", fmt(caJour), C.green],
-          ["Dépenses du jour", fmt(depensesJour), C.red],
-          ["Bénéfice estimé (jour)", fmt(beneficeJour), beneficeJour >= 0 ? C.green : C.red],
-          ["Solde / trésorerie", fmt(solde), solde >= 0 ? C.navy : C.red],
-        ].map(([label, val, color], i) => (
-          <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
-            <div style={{ color: C.textMuted, fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontWeight: 800, fontSize: "1.1rem", color }}>{val}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="gf-grid2">
-        {[
-          ["Reste à encaisser", fmt(enAttente), C.amber],
-          ["Clients à relancer", enRetard, C.red],
-        ].map(([label, val, color], i) => (
-          <div key={i} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
-            <div style={{ color: C.textMuted, fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontWeight: 800, fontSize: "1.1rem", color }}>{val}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8, marginTop: 4 }}>Récapitulatif des ventes</div>
-      <div className="gf-grid4">
-        {[
-          ["Point du jour", caJour, nbVentesPeriode(aujourdHui), "#10b981"],
-          ["Point de la semaine", caSemaine, nbVentesPeriode(debutSem), "#2563eb"],
-          ["Point du mois", caMois, nbVentesPeriode(debutMois), "#f59e0b"],
-          ["Point de l'année", caAnnee, nbVentesPeriode(debutAnnee), "#8b5cf6"],
-        ].map(([label, montant, nb, color], i) => (
-          <div key={i} style={{ background: color, borderRadius: 12, padding: 14, color: C.white }}>
-            <div style={{ fontSize: "0.72rem", opacity: 0.9, marginBottom: 6 }}>{label}</div>
-            <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{fmt(montant)}</div>
-            <div style={{ fontSize: "0.7rem", opacity: 0.85, marginTop: 2 }}>{nb} vente{nb > 1 ? "s" : ""}</div>
-          </div>
-        ))}
-      </div>
-
-      {stockFaible.length > 0 && (
-        <div style={{ background: "#fef2f2", border: `1px solid ${C.red}40`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.red, fontSize: "0.82rem", marginBottom: 8 }}>Stock faible</div>
-          {stockFaible.map(p => (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", padding: "4px 0" }}>
-              <span>{p.nom}</span>
-              <span style={{ fontWeight: 700, color: C.red }}>{p.stock_actuel} restant(s)</span>
-            </div>
-          ))}
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, minWidth: 0 }}>
+      {(titre || droite) && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub }}>{titre}</div>
+          {droite}
         </div>
       )}
+      {children}
+    </div>
+  );
+}
 
-      {produitsPlusVendus.length > 0 && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Produits les plus vendus</div>
-          {produitsPlusVendus.map((pv, i) => {
-            const produit = produits.find(p => p.id === pv.produit_id);
-            return (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.82rem" }}>
-                <span>{produit?.nom || "Produit supprimé"}</span>
-                <span style={{ fontWeight: 700 }}>{pv.quantite} unités</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+function Segments({ valeur, options, onChange }) {
+  return (
+    <div style={{ display: "inline-flex", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 3 }}>
+      {options.map(([id, label]) => (
+        <button key={id} onClick={() => onChange(id)}
+          style={{ border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: 8, fontSize: T.small, fontWeight: 700,
+            background: valeur === id ? C.navy : "transparent", color: valeur === id ? C.white : C.textMuted }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-      {repartitionPaiements.length > 0 && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Répartition des paiements (ventes)</div>
-          {repartitionPaiements.map((r, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.82rem" }}>
-              <span>{r.mode}</span>
-              <span style={{ fontWeight: 700 }}>{fmt(r.montant)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+function MiniCourbe({ points, couleur }) {
+  if (!points || points.length < 2) return null;
+  const max = Math.max(...points), min = Math.min(...points);
+  const ecart = max - min || 1;
+  const W = 100, H = 28;
+  const pts = points.map((v, i) => `${(i / (points.length - 1)) * W},${H - 3 - ((v - min) / ecart) * (H - 6)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 28, display: "block" }} aria-hidden="true">
+      <polyline points={pts} fill="none" stroke={couleur} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Dernières ventes</div>
-        {ventes.slice(0, 5).map(v => {
-          const produit = produits.find(p => p.id === v.produit_id);
-          return (
-            <div key={v.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: "0.8rem" }}>
-              <span>{produit?.nom || "Produit supprimé"} × {v.quantite}</span>
-              <span style={{ fontWeight: 700 }}>{fmt(v.montant)}</span>
-            </div>
-          );
-        })}
-        {ventes.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucune vente encore.</div>}
+function Variation({ actuel, precedent, inverse, libelle }) {
+  if (!precedent) return <span style={{ color: C.textMuted, fontSize: T.micro }}>Pas de base de comparaison</span>;
+  const pct = ((actuel - precedent) / Math.abs(precedent)) * 100;
+  const bon = inverse ? pct <= 0 : pct >= 0;
+  const couleur = Math.abs(pct) < 0.5 ? C.textMuted : bon ? C.green : C.red;
+  return (
+    <span style={{ fontSize: T.micro, color: C.textMuted }}>
+      <span style={{ color: couleur, fontWeight: 700 }}>{pct > 0 ? "+" : ""}{pct.toFixed(0)} %</span> vs {libelle}
+    </span>
+  );
+}
+
+function CarteKpi({ label, valeur, couleur, points, actuel, precedent, inverse, libelle, note }) {
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, minWidth: 0 }}>
+      <div style={{ color: C.textMuted, fontSize: T.micro, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontWeight: 800, fontSize: T.h3, color: couleur, marginBottom: 4, overflowWrap: "anywhere" }}>{valeur}</div>
+      <MiniCourbe points={points} couleur={couleur} />
+      <div style={{ marginTop: 4 }}>
+        {note ? <span style={{ fontSize: T.micro, color: C.textMuted }}>{note}</span>
+          : <Variation actuel={actuel} precedent={precedent} inverse={inverse} libelle={libelle} />}
       </div>
     </div>
   );
 }
 
+function Jauge({ pct, couleur, centre, sous }) {
+  const p = Math.max(0, Math.min(100, pct || 0));
+  return (
+    <div style={{ position: "relative", width: "100%", maxWidth: 220, margin: "0 auto" }}>
+      <svg viewBox="0 0 120 70" style={{ width: "100%", display: "block" }} aria-hidden="true">
+        <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke={C.bg} strokeWidth="11" strokeLinecap="round" pathLength="100" />
+        {p > 0 && <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke={couleur} strokeWidth="11" strokeLinecap="round" pathLength="100" strokeDasharray={`${p} 100`} />}
+      </svg>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 2, textAlign: "center" }}>
+        <div style={{ fontWeight: 800, fontSize: T.h2, color: C.navy, lineHeight: 1 }}>{centre}</div>
+        {sous && <div style={{ fontSize: T.micro, color: C.textMuted, marginTop: 3 }}>{sous}</div>}
+      </div>
+    </div>
+  );
+}
+
+function GraphiqueSemaine({ jours }) {
+  const max = Math.max(1, ...jours.map(j => Math.max(j.recette, j.depense)));
+  const meilleur = jours.reduce((b, j) => (j.recette > b.recette ? j : b), jours[0]);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 150 }}>
+        {jours.map(j => {
+          const estMeilleur = meilleur.recette > 0 && j.date === meilleur.date;
+          return (
+            <div key={j.date} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", height: "100%", minWidth: 0 }}>
+              <div style={{ fontSize: T.micro, color: estMeilleur ? C.navy : C.textMuted, fontWeight: estMeilleur ? 800 : 500, marginBottom: 3 }}>{j.recette > 0 ? fmtCourt(j.recette) : ""}</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, width: "100%", justifyContent: "center", height: 112 }}>
+                <div title={`Recettes ${fmt(j.recette)}`} style={{ width: "42%", maxWidth: 22, height: `${(j.recette / max) * 100}%`, minHeight: j.recette > 0 ? 3 : 0, background: estMeilleur ? C.teal : `${C.teal}99`, borderRadius: "4px 4px 0 0" }} />
+                <div title={`Dépenses ${fmt(j.depense)}`} style={{ width: "42%", maxWidth: 22, height: `${(j.depense / max) * 100}%`, minHeight: j.depense > 0 ? 3 : 0, background: `${C.orange}aa`, borderRadius: "4px 4px 0 0" }} />
+              </div>
+              <div style={{ fontSize: T.micro, color: C.textMuted, marginTop: 5 }}>{libelleJourCourt(j.date)}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: T.micro, color: C.textMuted }}>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: C.teal, marginRight: 5 }} />Recettes</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: C.orange, marginRight: 5 }} />Dépenses</span>
+      </div>
+    </div>
+  );
+}
+
+function CarteObjectif({ entreprise, recettesMois, recharger }) {
+  const [edition, setEdition] = useState(false);
+  const [valeur, setValeur] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const objectif = Number(entreprise?.objectif) || 0;
+  const pct = objectif > 0 ? (recettesMois / objectif) * 100 : 0;
+
+  const enregistrer = async () => {
+    const n = Number(String(valeur).replace(/\s/g, ""));
+    if (!Number.isFinite(n) || n < 0) { setErreur("Entre un montant valide."); return; }
+    setEnCours(true); setErreur("");
+    const { error } = await supabase.from("entreprises").update({ objectif: n }).eq("id", entreprise.id);
+    setEnCours(false);
+    if (error) { setErreur("Enregistrement impossible. Réessaie."); return; }
+    setEdition(false);
+    if (recharger) recharger();
+  };
+
+  return (
+    <Panneau titre="Objectif du mois" droite={!edition && <span className="gf-d-lien" onClick={() => { setValeur(objectif ? String(objectif) : ""); setEdition(true); }}>{objectif > 0 ? "Modifier" : "Définir"}</span>}>
+      {edition ? (
+        <div>
+          <Input label="Objectif de recettes (F)" type="number" inputMode="numeric" value={valeur} onChange={e => setValeur(e.target.value)} placeholder="ex : 500000" />
+          {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 8 }}>{erreur}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn variant="outline" onClick={() => { setEdition(false); setErreur(""); }}>Annuler</Btn>
+            <Btn onClick={enregistrer} disabled={enCours}>{enCours ? "..." : "Enregistrer"}</Btn>
+          </div>
+        </div>
+      ) : objectif > 0 ? (
+        <div>
+          <Jauge pct={pct} couleur={pct >= 100 ? C.green : C.teal} centre={`${Math.round(pct)} %`} sous={pct >= 100 ? "Objectif atteint" : "de l'objectif"} />
+          <div style={{ textAlign: "center", marginTop: 10, fontSize: T.small, color: C.textMuted }}>
+            <b style={{ color: C.navy }}>{fmt(recettesMois)}</b> sur {fmt(objectif)}
+          </div>
+        </div>
+      ) : (
+        <div style={{ color: C.textMuted, fontSize: T.body, lineHeight: 1.5 }}>
+          Fixe-toi un objectif de recettes pour le mois et suis ta progression ici.
+        </div>
+      )}
+    </Panneau>
+  );
+}
+
+function PremiersPas({ allerA }) {
+  const etapes = [
+    ["stock", "Ajoute tes produits", "Nom, prix d'achat, prix de vente, stock."],
+    ["ventes", "Fais ta première vente", "Utilise la Caisse : panier, ticket, validation."],
+    ["clients", "Enregistre tes clients", "Pour suivre les paiements et les relances."],
+    ["depenses", "Note tes dépenses", "Pour connaître ton vrai bénéfice."],
+  ];
+  return (
+    <Panneau titre="Premiers pas">
+      <div style={{ color: C.textMuted, fontSize: T.body, marginBottom: 10 }}>Ton tableau de bord se remplira dès les premières opérations.</div>
+      {etapes.map(([id, titre, desc], i) => (
+        <div key={id} className="gf-d-ligne" style={{ cursor: "pointer" }} onClick={() => allerA && allerA(id)}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", minWidth: 0 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 13, background: `${C.teal}22`, color: C.teal, fontWeight: 800, fontSize: T.small, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: C.text }}>{titre}</div>
+              <div style={{ fontSize: T.small, color: C.textMuted }}>{desc}</div>
+            </div>
+          </div>
+          <span className="gf-d-lien">Ouvrir</span>
+        </div>
+      ))}
+    </Panneau>
+  );
+}
+
+function TableauDeBord({ entreprise, clients, paiements, creances, ventes, produits, depenses, allerA, recharger }) {
+  const [periode, setPeriode] = useState("semaine");
+  const aujourdHui = jourISO(0);
+  const P = PERIODES[periode];
+
+  const num = (x) => Number(x) || 0;
+  const coutVente = (v) => {
+    const p = produits.find(pr => pr.id === v.produit_id);
+    return num(p?.prix_achat) * num(v.quantite);
+  };
+
+  // Totaux par jour
+  const recetteParJour = {}, depenseParJour = {}, beneficeParJour = {};
+  const ajouter = (m, d, x) => { m[d] = (m[d] || 0) + x; };
+  ventes.forEach(v => { ajouter(recetteParJour, v.date, num(v.montant)); ajouter(beneficeParJour, v.date, num(v.montant) - coutVente(v)); });
+  paiements.filter(p => p.statut === "Payé").forEach(p => { ajouter(recetteParJour, p.date, num(p.montant)); ajouter(beneficeParJour, p.date, num(p.montant)); });
+  depenses.forEach(d => { ajouter(depenseParJour, d.date, num(d.montant)); ajouter(beneficeParJour, d.date, -num(d.montant)); });
+
+  const somme = (map, debutDecalage, finDecalage) => {
+    let s = 0;
+    for (let k = debutDecalage; k <= finDecalage; k++) s += map[jourISO(k)] || 0;
+    return s;
+  };
+  const serie = (map, nb) => Array.from({ length: nb }, (_, i) => map[jourISO(-(nb - 1 - i))] || 0);
+
+  const n = P.n;
+  const rec = somme(recetteParJour, -(n - 1), 0), recPrec = somme(recetteParJour, -(2 * n - 1), -n);
+  const dep = somme(depenseParJour, -(n - 1), 0), depPrec = somme(depenseParJour, -(2 * n - 1), -n);
+  const ben = somme(beneficeParJour, -(n - 1), 0), benPrec = somme(beneficeParJour, -(2 * n - 1), -n);
+  const nbSpark = n === 1 ? 7 : n;
+
+  // Reste à encaisser et taux d'encaissement
+  const echeances = creances.flatMap(cr => cr.echeances || []);
+  const resteP = paiements.filter(p => p.statut !== "Payé").reduce((s, p) => s + num(p.montant), 0);
+  const resteE = echeances.filter(e => !e.paye).reduce((s, e) => s + num(e.montant), 0);
+  const reste = resteP + resteE;
+  const encaisseP = paiements.filter(p => p.statut === "Payé").reduce((s, p) => s + num(p.montant), 0);
+  const encaisseE = echeances.filter(e => e.paye).reduce((s, e) => s + num(e.montant), 0);
+  const encaisse = encaisseP + encaisseE;
+  const tauxEncaissement = encaisse + reste > 0 ? (encaisse / (encaisse + reste)) * 100 : null;
+
+  // Trésorerie globale
+  const totalRecettes = Object.values(recetteParJour).reduce((s, x) => s + x, 0);
+  const totalDepenses = Object.values(depenseParJour).reduce((s, x) => s + x, 0);
+  const solde = totalRecettes - totalDepenses;
+
+  // Mois calendaire (objectif)
+  const debutMois = debutMoisISO();
+  const recettesMois = Object.entries(recetteParJour).filter(([d]) => d >= debutMois).reduce((s, [, x]) => s + x, 0);
+
+  // 7 jours
+  const jours7 = Array.from({ length: 7 }, (_, i) => {
+    const d = jourISO(-(6 - i));
+    return { date: d, recette: recetteParJour[d] || 0, depense: depenseParJour[d] || 0 };
+  });
+
+  // Modes de paiement
+  const modes = MODES_PAIEMENT.map(m => ({ mode: m, montant: ventes.filter(v => v.mode === m).reduce((s, v) => s + num(v.montant), 0) })).filter(r => r.montant > 0);
+  const totalModes = modes.reduce((s, r) => s + r.montant, 0);
+
+  // À faire
+  const stockFaible = produits.filter(p => num(p.stock_actuel) <= num(p.seuil_alerte));
+  const clientsRetard = clients.map(c => {
+    const du = paiements.filter(p => p.client_id === c.id && p.statut !== "Payé" && p.date < aujourdHui).reduce((s, p) => s + num(p.montant), 0)
+      + creances.filter(cr => cr.client_id === c.id).flatMap(cr => cr.echeances || []).filter(e => statutEcheance(e) === "En retard").reduce((s, e) => s + num(e.montant), 0);
+    return { ...c, du };
+  }).filter(c => c.du > 0).sort((a, b) => b.du - a.du);
+
+  // Plus vendus
+  const parProduit = {};
+  ventes.forEach(v => { parProduit[v.produit_id] = (parProduit[v.produit_id] || 0) + num(v.quantite); });
+  const plusVendus = Object.entries(parProduit).map(([id, q]) => ({ id, q })).sort((a, b) => b.q - a.q).slice(0, 5);
+  const maxVendu = plusVendus[0]?.q || 1;
+
+  // Récap calendaire
+  const nbVentesDepuis = (d) => ventes.filter(v => v.date >= d).length;
+  const recapDepuis = (d) => ventes.filter(v => v.date >= d).reduce((s, v) => s + num(v.montant), 0) + paiements.filter(p => p.statut === "Payé" && p.date >= d).reduce((s, p) => s + num(p.montant), 0);
+  const recaps = [
+    ["Aujourd'hui", aujourdHui, "#10b981"],
+    ["Cette semaine", debutSemaineISO(), "#2563eb"],
+    ["Ce mois", debutMois, "#f59e0b"],
+    ["Cette année", debutAnneeISO(), "#8b5cf6"],
+  ];
+
+  const compteVide = ventes.length === 0 && clients.length === 0 && produits.length === 0 && depenses.length === 0 && paiements.length === 0;
+  const nomAffiche = entreprise?.responsable ? String(entreprise.responsable).split(" ")[0] : "";
+
+  return (
+    <div>
+      <style>{DASH_CSS}</style>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: T.h2, color: C.navy }}>{nomAffiche ? `Bonjour ${nomAffiche}` : "Tableau de bord"}</div>
+          <div style={{ color: C.textMuted, fontSize: T.small }}>Voici l'état de ton activité.</div>
+        </div>
+        <Segments valeur={periode} onChange={setPeriode} options={[["jour", "Jour"], ["semaine", "7 jours"], ["mois", "30 jours"]]} />
+      </div>
+
+      {compteVide && <div className="gf-d-grid"><div className="d12" style={{ gridColumn: "1 / -1" }}><PremiersPas allerA={allerA} /></div></div>}
+
+      <div className="gf-d-kpi">
+        <CarteKpi label="Recettes" valeur={fmt(rec)} couleur={C.green} points={serie(recetteParJour, nbSpark)} actuel={rec} precedent={recPrec} libelle={P.compare} />
+        <CarteKpi label="Dépenses" valeur={fmt(dep)} couleur={C.red} points={serie(depenseParJour, nbSpark)} actuel={dep} precedent={depPrec} inverse libelle={P.compare} />
+        <CarteKpi label="Bénéfice estimé" valeur={fmt(ben)} couleur={ben >= 0 ? C.navy : C.red} points={serie(beneficeParJour, nbSpark)} actuel={ben} precedent={benPrec} libelle={P.compare} />
+        <CarteKpi label="Reste à encaisser" valeur={fmt(reste)} couleur={C.amber} note={`Trésorerie : ${fmt(solde)}`} />
+      </div>
+
+      <div className="gf-d-grid">
+        <div className="d8"><Panneau titre="7 derniers jours"><GraphiqueSemaine jours={jours7} /></Panneau></div>
+        <div className="d4"><CarteObjectif entreprise={entreprise} recettesMois={recettesMois} recharger={recharger} /></div>
+      </div>
+
+      <div className="gf-d-grid">
+        <div className="d4">
+          <Panneau titre="Taux d'encaissement">
+            {tauxEncaissement === null
+              ? <div style={{ color: C.textMuted, fontSize: T.body }}>Aucun paiement ou échéance enregistré.</div>
+              : <>
+                <Jauge pct={tauxEncaissement} couleur={tauxEncaissement >= 70 ? C.green : tauxEncaissement >= 40 ? C.amber : C.red} centre={`${Math.round(tauxEncaissement)} %`} sous="encaissé" />
+                <div style={{ textAlign: "center", marginTop: 10, fontSize: T.small, color: C.textMuted }}>{fmt(encaisse)} encaissés · {fmt(reste)} à recevoir</div>
+              </>}
+          </Panneau>
+        </div>
+        <div className="d4">
+          <Panneau titre="Modes de paiement">
+            {modes.length === 0 ? <div style={{ color: C.textMuted, fontSize: T.body }}>Aucune vente encore.</div> : (
+              <div>
+                <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>
+                  {modes.map(r => <div key={r.mode} style={{ width: `${(r.montant / totalModes) * 100}%`, background: COULEURS_MODE[r.mode] || C.textMuted }} />)}
+                </div>
+                {modes.map(r => (
+                  <div key={r.mode} className="gf-d-ligne">
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 3, background: COULEURS_MODE[r.mode] || C.textMuted }} />{r.mode}
+                    </span>
+                    <span style={{ fontWeight: 700 }}>{Math.round((r.montant / totalModes) * 100)} %</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panneau>
+        </div>
+        <div className="d4">
+          <Panneau titre="Produits les plus vendus">
+            {plusVendus.length === 0 ? <div style={{ color: C.textMuted, fontSize: T.body }}>Aucune vente encore.</div> : plusVendus.map(pv => {
+              const produit = produits.find(p => String(p.id) === String(pv.id));
+              return (
+                <div key={pv.id} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: T.body, marginBottom: 4, gap: 8 }}>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{produit?.nom || "Produit supprimé"}</span>
+                    <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{pv.q}</span>
+                  </div>
+                  <div style={{ height: 6, background: C.bg, borderRadius: 3 }}>
+                    <div style={{ height: 6, width: `${(pv.q / maxVendu) * 100}%`, background: C.teal, borderRadius: 3 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </Panneau>
+        </div>
+      </div>
+
+      <div className="gf-d-grid">
+        <div className="d6">
+          <Panneau titre="À faire" droite={(stockFaible.length + clientsRetard.length) > 0 ? <Badge text={`${stockFaible.length + clientsRetard.length}`} color="rouge" /> : null}>
+            {stockFaible.length === 0 && clientsRetard.length === 0 && <div style={{ color: C.textMuted, fontSize: T.body }}>Rien d'urgent. Stock et paiements sont à jour.</div>}
+            {stockFaible.slice(0, 5).map(p => (
+              <div key={p.id} className="gf-d-ligne">
+                <span style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.nom}</div>
+                  <div style={{ fontSize: T.small, color: C.red }}>Stock faible : {p.stock_actuel} restant(s)</div>
+                </span>
+                <span className="gf-d-lien" onClick={() => allerA && allerA("stock")}>Réapprovisionner</span>
+              </div>
+            ))}
+            {clientsRetard.slice(0, 5).map(c => {
+              const lien = lienWhatsapp(c.telephone, `Bonjour ${c.nom}, un petit rappel : vous avez un solde de ${fmt(c.du)} à régler chez ${entreprise?.nom || "nous"}. Merci !`);
+              return (
+                <div key={c.id} className="gf-d-ligne">
+                  <span style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600 }}>{c.nom}</div>
+                    <div style={{ fontSize: T.small, color: C.amber }}>En retard : {fmt(c.du)}</div>
+                  </span>
+                  {lien
+                    ? <a className="gf-d-lien" href={lien} target="_blank" rel="noopener noreferrer">Relancer</a>
+                    : <span style={{ fontSize: T.micro, color: C.textMuted }}>Pas de numéro</span>}
+                </div>
+              );
+            })}
+          </Panneau>
+        </div>
+        <div className="d6">
+          <Panneau titre="Dernières ventes" droite={<span className="gf-d-lien" onClick={() => allerA && allerA("ventes")}>Caisse</span>}>
+            {ventes.length === 0 && <div style={{ color: C.textMuted, fontSize: T.body }}>Aucune vente encore.</div>}
+            {ventes.slice(0, 6).map(v => {
+              const produit = produits.find(p => p.id === v.produit_id);
+              return (
+                <div key={v.id} className="gf-d-ligne">
+                  <span style={{ minWidth: 0 }}>
+                    <div>{produit?.nom || "Produit supprimé"} × {v.quantite}</div>
+                    <div style={{ fontSize: T.micro, color: C.textMuted }}>{v.date}{v.mode ? ` · ${v.mode}` : ""}</div>
+                  </span>
+                  <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(v.montant)}</span>
+                </div>
+              );
+            })}
+          </Panneau>
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, margin: "4px 0 8px" }}>Récapitulatif des ventes</div>
+      <div className="gf-d-kpi">
+        {recaps.map(([label, depuis, couleur]) => {
+          const nb = nbVentesDepuis(depuis);
+          return (
+            <div key={label} style={{ background: couleur, borderRadius: 14, padding: 14, color: C.white }}>
+              <div style={{ fontSize: T.small, opacity: 0.9, marginBottom: 6 }}>{label}</div>
+              <div style={{ fontWeight: 800, fontSize: T.sub }}>{fmt(recapDepuis(depuis))}</div>
+              <div style={{ fontSize: T.micro, opacity: 0.85, marginTop: 2 }}>{nb} vente{nb > 1 ? "s" : ""}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 // ============================================================
 // CLIENTS
 // ============================================================
@@ -750,8 +1094,7 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
   };
 
   const supprimer = async (id) => {
-    await supabase.from("clients").delete().eq("id", id);
-    recharger();
+    await supprimerLigne("clients", id, "Supprimer ce client ? Ses paiements et créances resteront enregistrés sans nom.", recharger);
   };
 
   const modifierClient = async (id, champ, valeur) => {
@@ -767,39 +1110,39 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
 
     return (
       <div style={{ maxWidth: 500 }}>
-        <div onClick={() => setClientOuvert(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux clients</div>
+        <div onClick={() => setClientOuvert(null)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour aux clients</div>
 
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <Input label="Nom" defaultValue={client.nom} onBlur={e => modifierClient(client.id, "nom", e.target.value)} />
           <Input label="Téléphone" defaultValue={client.telephone} onBlur={e => modifierClient(client.id, "telephone", e.target.value)} />
-          <div style={{ color: C.textMuted, fontSize: "0.72rem", marginTop: 4 }}>Statut : {client.statut}</div>
+          <div style={{ color: C.textMuted, fontSize: T.small, marginTop: 4 }}>Statut : {client.statut}</div>
         </div>
 
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ color: C.textMuted, fontSize: "0.68rem" }}>TOTAL ENCAISSÉ</div>
-          <div style={{ color: C.green, fontWeight: 800, fontSize: "1.15rem" }}>{fmt(totalPaye)}</div>
+          <div style={{ color: C.textMuted, fontSize: T.micro }}>TOTAL ENCAISSÉ</div>
+          <div style={{ color: C.green, fontWeight: 800, fontSize: T.h3 }}>{fmt(totalPaye)}</div>
         </div>
 
         {historiqueCreances.length > 0 && (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Créances échelonnées</div>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 8 }}>Créances échelonnées</div>
             {historiqueCreances.map(cr => (
               <div key={cr.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{fmt(cr.montant_total)}</div>
-                <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{(cr.echeances || []).filter(e => e.paye).length} / {cr.nombre_echeances} échéances payées</div>
+                <div style={{ fontWeight: 700, fontSize: T.body }}>{fmt(cr.montant_total)}</div>
+                <div style={{ color: C.textMuted, fontSize: T.small }}>{(cr.echeances || []).filter(e => e.paye).length} / {cr.nombre_echeances} échéances payées</div>
               </div>
             ))}
           </div>
         )}
 
         <div>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Historique des paiements</div>
-          {historiquePaiements.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.8rem" }}>Aucun paiement enregistré.</div>}
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 8 }}>Historique des paiements</div>
+          {historiquePaiements.length === 0 && <div style={{ color: C.textMuted, fontSize: T.body }}>Aucun paiement enregistré.</div>}
           {historiquePaiements.map(p => (
             <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{fmt(p.montant)}</div>
-                <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.date} · {p.mode}</div>
+                <div style={{ fontWeight: 700, fontSize: T.body }}>{fmt(p.montant)}</div>
+                <div style={{ color: C.textMuted, fontSize: T.small }}>{p.date} · {p.mode}</div>
               </div>
               <Badge text={p.statut} color={p.statut === "Payé" ? "vert" : "ambre"} />
             </div>
@@ -812,28 +1155,21 @@ function ClientsView({ entreprise, clients, paiements, creances, recharger }) {
   return (
     <div style={{ maxWidth: 700 }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un client</div>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Ajouter un client</div>
         <Input placeholder="Nom du client" value={nom} onChange={e => setNom(e.target.value)} />
         <Input placeholder="Téléphone" value={telephone} onChange={e => setTelephone(e.target.value)} />
         <Btn onClick={ajouter}>Ajouter</Btn>
       </div>
-      {clients.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <Btn variant="outline" onClick={() => exporterCSV("clients", [
-            { label: "Nom", cle: "nom" }, { label: "Téléphone", cle: "telephone" }, { label: "Statut", cle: "statut" },
-          ], clients)}>Exporter en CSV</Btn>
-        </div>
-      )}
       {clients.length === 0 && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucun client pour l'instant.</div>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: T.body }}>Aucun client pour l'instant.</div>
       )}
       {clients.map(c => (
         <div key={c.id} className="gf-card-link" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div onClick={() => setClientOuvert(c)} style={{ cursor: "pointer", flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.teal }}>{c.nom}</div>
-            <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{c.telephone}</div>
+            <div style={{ fontWeight: 700, fontSize: T.body, color: C.teal }}>{c.nom}</div>
+            <div style={{ color: C.textMuted, fontSize: T.small }}>{c.telephone}</div>
           </div>
-          <span onClick={() => supprimer(c.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
+          <LienSupprimer onClick={() => supprimer(c.id)} />
         </div>
       ))}
     </div>
@@ -855,41 +1191,41 @@ function PaiementsView({ entreprise, clients, paiements, recharger }) {
     recharger();
   };
 
+  const supprimerPaiement = async (id) => {
+    await supprimerLigne("paiements", id, "Supprimer ce paiement ?", recharger);
+  };
+
   return (
     <div style={{ maxWidth: 700 }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer un paiement</div>
-        <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Enregistrer un paiement</div>
+        <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.body }}>
           <option value="">— Choisir un client —</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
         </select>
         <Input type="number" placeholder="Montant (FCFA)" value={montant} onChange={e => setMontant(e.target.value)} />
-        <select value={statut} onChange={e => setStatut(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+        <select value={statut} onChange={e => setStatut(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.body }}>
           <option>Payé</option><option>En attente</option>
         </select>
         <Btn onClick={ajouter}>Enregistrer</Btn>
       </div>
-      {paiements.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <Btn variant="outline" onClick={() => exporterCSV("paiements", [
-            { label: "Date", cle: "date" }, { label: "Montant", cle: "montant" }, { label: "Mode", cle: "mode" }, { label: "Statut", cle: "statut" },
-          ], paiements)}>Exporter en CSV</Btn>
-        </div>
-      )}
       {paiements.length === 0 && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucun paiement enregistré.</div>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: T.body }}>Aucun paiement enregistré.</div>
       )}
       {paiements.map(p => {
         const client = clients.find(c => c.id === p.client_id);
         return (
-          <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+          <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{client?.nom || "—"}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{p.date}</div>
+              <div style={{ fontWeight: 700, fontSize: T.body }}>{client?.nom || "—"}</div>
+              <div style={{ color: C.textMuted, fontSize: T.small }}>{p.date}</div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 700 }}>{fmt(p.montant)}</div>
-              <Badge text={p.statut} color={p.statut === "Payé" ? "vert" : "ambre"} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700 }}>{fmt(p.montant)}</div>
+                <Badge text={p.statut} color={p.statut === "Payé" ? "vert" : "ambre"} />
+              </div>
+              <LienSupprimer onClick={() => supprimerPaiement(p.id)} />
             </div>
           </div>
         );
@@ -943,16 +1279,10 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
     }
   };
 
-  const lignesExportCreances = creances.flatMap(cr => {
-    const client = clients.find(c => c.id === cr.client_id);
-    return (cr.echeances || []).map(e => ({
-      client: client?.nom || "Client supprimé",
-      numero: e.numero,
-      montant: e.montant,
-      date_echeance: e.date_echeance,
-      statut: statutEcheance(e),
-    }));
-  });
+  const supprimerCreance = async (id) => {
+    const ok = await supprimerLigne("creances", id, "Supprimer cette créance et toutes ses échéances ?", recharger);
+    if (ok) setCreanceOuverte(null);
+  };
 
   if (creanceOuverte) {
     const cr = creances.find(c => c.id === creanceOuverte.id) || creanceOuverte;
@@ -963,23 +1293,24 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 
     return (
       <div style={{ maxWidth: 500 }}>
-        <div onClick={() => setCreanceOuverte(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux créances</div>
+        <div onClick={() => setCreanceOuverte(null)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour aux créances</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem", marginBottom: 4 }}>{client?.nom || "Client supprimé"}</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 4 }}>{client?.nom || "Client supprimé"}</div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-            <div><div style={{ color: C.textMuted, fontSize: "0.68rem" }}>ENCAISSÉ</div><div style={{ color: C.green, fontWeight: 800 }}>{fmt(paye)}</div></div>
-            <div><div style={{ color: C.textMuted, fontSize: "0.68rem" }}>RESTE DÛ</div><div style={{ color: C.red, fontWeight: 800 }}>{fmt(reste)}</div></div>
+            <div><div style={{ color: C.textMuted, fontSize: T.micro }}>ENCAISSÉ</div><div style={{ color: C.green, fontWeight: 800 }}>{fmt(paye)}</div></div>
+            <div><div style={{ color: C.textMuted, fontSize: T.micro }}>RESTE DÛ</div><div style={{ color: C.red, fontWeight: 800 }}>{fmt(reste)}</div></div>
           </div>
+          <div style={{ marginTop: 12 }}><LienSupprimer onClick={() => supprimerCreance(cr.id)} label="Supprimer cette créance" /></div>
         </div>
         {echeances.map(e => (
           <div key={e.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Échéance {e.numero} · {fmt(e.montant)}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{e.date_echeance}</div>
+              <div style={{ fontWeight: 700, fontSize: T.body }}>Échéance {e.numero} · {fmt(e.montant)}</div>
+              <div style={{ color: C.textMuted, fontSize: T.small }}>{e.date_echeance}</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Badge text={statutEcheance(e)} color={e.paye ? "vert" : statutEcheance(e) === "En retard" ? "rouge" : "gris"} />
-              <span onClick={() => toggleEcheancePayee(e.id, e.paye)} style={{ color: C.teal, fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <span onClick={() => toggleEcheancePayee(e.id, e.paye)} style={{ color: C.teal, fontSize: T.small, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {e.paye ? "Annuler" : "Marquer payée"}
               </span>
             </div>
@@ -996,28 +1327,21 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
       )}
       {formOuvert && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Nouvelle créance échelonnée</div>
-          <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Nouvelle créance échelonnée</div>
+          <select value={clientId} onChange={e => setClientId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.body }}>
             <option value="">— Choisir un client —</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
           <Input type="number" placeholder="Montant total (FCFA)" value={montantTotal} onChange={e => setMontantTotal(e.target.value)} />
           <Input type="number" label="Nombre d'échéances" value={nombreEcheances} onChange={e => setNombreEcheances(e.target.value)} />
           <Input type="date" label="1ère échéance" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
-          {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreur}</div>}
+          {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 10 }}>{erreur}</div>}
           <Btn onClick={creerCreance} disabled={chargement}>{chargement ? "Création..." : "Créer l'échéancier"}</Btn>
-          <div onClick={() => setFormOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: "0.78rem", color: C.textMuted, cursor: "pointer" }}>Annuler</div>
-        </div>
-      )}
-      {lignesExportCreances.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <Btn variant="outline" onClick={() => exporterCSV("creances", [
-            { label: "Client", cle: "client" }, { label: "N° échéance", cle: "numero" }, { label: "Montant", cle: "montant" }, { label: "Date échéance", cle: "date_echeance" }, { label: "Statut", cle: "statut" },
-          ], lignesExportCreances)}>Exporter en CSV</Btn>
+          <div onClick={() => setFormOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: T.small, color: C.textMuted, cursor: "pointer" }}>Annuler</div>
         </div>
       )}
       {creances.length === 0 && !formOuvert && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucune créance échelonnée pour l'instant.</div>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: T.body }}>Aucune créance échelonnée pour l'instant.</div>
       )}
       {creances.map(cr => {
         const client = clients.find(c => c.id === cr.client_id);
@@ -1030,12 +1354,15 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
             style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "0.88rem", color: C.text }}>{client?.nom || "Client supprimé"}</div>
-                <div style={{ color: C.textMuted, fontSize: "0.75rem", marginTop: 2 }}>{payees} / {cr.nombre_echeances} échéances payées</div>
+                <div style={{ fontWeight: 700, fontSize: T.body, color: C.text }}>{client?.nom || "Client supprimé"}</div>
+                <div style={{ color: C.textMuted, fontSize: T.small, marginTop: 2 }}>{payees} / {cr.nombre_echeances} échéances payées</div>
               </div>
               <Badge text={statutGlobal} color={statutGlobal === "Payée" ? "vert" : statutGlobal === "En retard" ? "rouge" : "gris"} />
             </div>
-            <div style={{ fontWeight: 800, color: C.teal, marginTop: 8 }}>{fmt(cr.montant_total)}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+              <div style={{ fontWeight: 800, color: C.teal }}>{fmt(cr.montant_total)}</div>
+              <LienSupprimer onClick={() => supprimerCreance(cr.id)} />
+            </div>
           </div>
         );
       })}
@@ -1044,7 +1371,7 @@ function CreancesView({ entreprise, clients, creances, recharger }) {
 }
 
 // ============================================================
-// VENTE / CAISSE
+// CAISSE (Ventes)
 // ============================================================
 function VentesView({ entreprise, produits, ventes, recharger }) {
   const [gererProduits, setGererProduits] = useState(false);
@@ -1071,8 +1398,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
   };
 
   const supprimerProduit = async (id) => {
-    await supabase.from("produits").delete().eq("id", id);
-    recharger();
+    await supprimerLigne("produits", id, "Supprimer ce produit ?", recharger);
   };
 
   const ajouterAuPanier = (produit) => {
@@ -1168,16 +1494,15 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
   };
 
   const supprimerVente = async (id) => {
-    await supabase.from("ventes").delete().eq("id", id);
-    recharger();
+    await supprimerLigne("ventes", id, "Annuler cette vente ?", recharger);
   };
 
   if (gererProduits) {
     return (
       <div style={{ maxWidth: 500 }}>
-        <div onClick={() => setGererProduits(false)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour à la caisse</div>
+        <div onClick={() => setGererProduits(false)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour à la caisse</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Ajouter un produit</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Ajouter un produit</div>
           <Input placeholder="Nom du produit (ex: Bière 33cl)" value={nomProduit} onChange={e => setNomProduit(e.target.value)} />
           <Input type="number" placeholder="Prix de vente (FCFA)" value={prixProduit} onChange={e => setPrixProduit(e.target.value)} />
           <Input type="number" placeholder="Prix d'achat (FCFA, optionnel)" value={prixAchatProduit} onChange={e => setPrixAchatProduit(e.target.value)} />
@@ -1187,10 +1512,10 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
         {produits.map(p => (
           <div key={p.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{p.nom}</div>
-              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{fmt(p.prix)} · Stock: {p.stock_actuel}</div>
+              <div style={{ fontWeight: 700, fontSize: T.body }}>{p.nom}</div>
+              <div style={{ color: C.textMuted, fontSize: T.small }}>{fmt(p.prix)} · Stock: {p.stock_actuel}</div>
             </div>
-            <span onClick={() => supprimerProduit(p.id)} style={{ color: C.red, fontSize: "0.75rem", cursor: "pointer" }}>Supprimer</span>
+            <LienSupprimer onClick={() => supprimerProduit(p.id)} />
           </div>
         ))}
       </div>
@@ -1205,9 +1530,9 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
           #zone-impression, #zone-impression * { visibility: visible; }
           #zone-impression { position: absolute; left: 0; top: 0; width: 100%; }
         `}</style>
-        <div onClick={() => setEcran("caisse")} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Modifier le ticket</div>
+        <div onClick={() => setEcran("caisse")} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Modifier le ticket</div>
 
-        <div id="zone-impression" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, fontFamily: "monospace", fontSize: "0.82rem", marginBottom: 16 }}>
+        <div id="zone-impression" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, fontFamily: "monospace", fontSize: T.body, marginBottom: 16 }}>
           <div style={{ textAlign: "center", fontWeight: 800, marginBottom: 6 }}>{(entreprise.nom || "").toUpperCase()}</div>
           <div>Employé : {entreprise.responsable || "—"}</div>
           <div>PDV : Comptoir</div>
@@ -1220,7 +1545,7 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
                 <span>{l.nom}</span>
                 <span>{fmt(l.prix * l.quantite)}</span>
               </div>
-              <div style={{ color: C.textMuted, fontSize: "0.75rem" }}>{l.quantite} × {fmt(l.prix)}</div>
+              <div style={{ color: C.textMuted, fontSize: T.small }}>{l.quantite} × {fmt(l.prix)}</div>
             </div>
           ))}
           <div style={{ borderTop: `1px dashed ${C.border}`, margin: "8px 0" }} />
@@ -1263,17 +1588,17 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
       `}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub }}>Vendu aujourd'hui : <span style={{ color: C.green }}>{fmt(totalDuJour)}</span></div>
         <div style={{ display: "flex", gap: 12 }}>
-          <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Calculatrice</span>
-          <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
+          <span onClick={() => setCalculatriceOuverte(o => !o)} style={{ color: C.teal, fontSize: T.small, fontWeight: 700, cursor: "pointer" }}>Calculatrice</span>
+          <span onClick={() => setGererProduits(true)} style={{ color: C.teal, fontSize: T.small, fontWeight: 700, cursor: "pointer" }}>Gérer les produits</span>
         </div>
       </div>
 
       {calculatriceOuverte && <Calculatrice />}
 
       {produits.length === 0 && (
-        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>
+        <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: T.body }}>
           Aucun produit encore. <span onClick={() => setGererProduits(true)} style={{ color: C.teal, cursor: "pointer" }}>Ajoute ton premier produit</span>.
         </div>
       )}
@@ -1287,56 +1612,56 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
                 <button key={p.id} onClick={() => ajouterAuPanier(p)} className="gf-btn gf-card-link"
                   style={{ position: "relative", textAlign: "left", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, cursor: "pointer" }}>
                   {rupture && (
-                    <span style={{ position: "absolute", top: 8, right: 8, fontSize: "0.6rem", fontWeight: 700, color: C.red, background: `${C.red}18`, padding: "2px 6px", borderRadius: 8 }}>Rupture</span>
+                    <span style={{ position: "absolute", top: 8, right: 8, fontSize: T.micro, fontWeight: 700, color: C.red, background: `${C.red}18`, padding: "2px 6px", borderRadius: 8 }}>Rupture</span>
                   )}
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: C.text, marginBottom: 4 }}>{p.nom}</div>
-                  <div style={{ color: C.teal, fontWeight: 800, fontSize: "0.9rem" }}>{fmt(p.prix)}</div>
-                  <div style={{ color: C.textMuted, fontSize: "0.68rem", marginTop: 2 }}>Stock: {p.stock_actuel}</div>
+                  <div style={{ fontWeight: 700, fontSize: T.body, color: C.text, marginBottom: 4 }}>{p.nom}</div>
+                  <div style={{ color: C.teal, fontWeight: 800, fontSize: T.sub }}>{fmt(p.prix)}</div>
+                  <div style={{ color: C.textMuted, fontSize: T.micro, marginTop: 2 }}>Stock: {p.stock_actuel}</div>
                 </button>
               );
             })}
           </div>
 
           <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginTop: 16 }}>
-            <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 10 }}>Ticket en cours</div>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Ticket en cours</div>
 
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
               {["Sur Place", "À emporter"].map(t => (
                 <button key={t} onClick={() => setTypeCommande(t)} className="gf-btn"
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: `1px solid ${typeCommande === t ? C.teal : C.border}`, background: typeCommande === t ? C.teal : C.bg, color: typeCommande === t ? C.white : C.text, fontSize: "0.75rem", fontWeight: 700 }}>
+                  style={{ flex: 1, padding: 8, borderRadius: 8, border: `1px solid ${typeCommande === t ? C.teal : C.border}`, background: typeCommande === t ? C.teal : C.bg, color: typeCommande === t ? C.white : C.text, fontSize: T.small, fontWeight: 700 }}>
                   {t}
                 </button>
               ))}
             </div>
 
-            {panier.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.82rem", textAlign: "center", padding: "10px 0" }}>Appuie sur un produit pour l'ajouter</div>}
+            {panier.length === 0 && <div style={{ color: C.textMuted, fontSize: T.body, textAlign: "center", padding: "10px 0" }}>Appuie sur un produit pour l'ajouter</div>}
             {panier.map(l => (
               <div key={l.produit_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{l.nom}</div>
-                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(l.prix)} × {l.quantite}</div>
+                  <div style={{ fontWeight: 700, fontSize: T.body }}>{l.nom}</div>
+                  <div style={{ color: C.textMuted, fontSize: T.small }}>{fmt(l.prix)} × {l.quantite}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <button onClick={() => changerQuantite(l.produit_id, -1)} className="gf-btn" style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>-</button>
                   <span style={{ fontWeight: 700, minWidth: 16, textAlign: "center" }}>{l.quantite}</span>
                   <button onClick={() => changerQuantite(l.produit_id, 1)} className="gf-btn" style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, fontWeight: 700 }}>+</button>
-                  <span onClick={() => retirerDuPanier(l.produit_id)} style={{ color: C.red, fontSize: "0.7rem", cursor: "pointer", marginLeft: 4 }}>✕</span>
+                  <span onClick={() => retirerDuPanier(l.produit_id)} style={{ color: C.red, fontSize: T.small, cursor: "pointer", marginLeft: 4 }}>✕</span>
                 </div>
               </div>
             ))}
 
             {panier.length > 0 && (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", fontWeight: 800, fontSize: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", fontWeight: 800, fontSize: T.h3 }}>
                   <span>Total</span>
                   <span style={{ color: C.teal }}>{fmt(totalPanier)}</span>
                 </div>
                 <select value={mode} onChange={e => setMode(e.target.value)} className="gf-input"
-                  style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+                  style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.body }}>
                   {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 <Btn onClick={genererApercu}>Voir la facture</Btn>
-                <div onClick={() => setPanier([])} style={{ textAlign: "center", marginTop: 10, fontSize: "0.75rem", color: C.textMuted, cursor: "pointer" }}>Vider le ticket</div>
+                <div onClick={() => setPanier([])} style={{ textAlign: "center", marginTop: 10, fontSize: T.small, color: C.textMuted, cursor: "pointer" }}>Vider le ticket</div>
               </>
             )}
           </div>
@@ -1345,16 +1670,16 @@ function VentesView({ entreprise, produits, ventes, recharger }) {
 
       {ventesDuJour.length > 0 && (
         <div style={{ marginTop: 20, maxWidth: 700 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 8 }}>Ventes du jour</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 8 }}>Ventes du jour</div>
           {ventesDuJour.map(v => {
             const produit = produits.find(p => p.id === v.produit_id);
             return (
               <div key={v.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{produit?.nom || "Produit supprimé"} × {v.quantite}</div>
-                  <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{fmt(v.montant)} · {v.mode}</div>
+                  <div style={{ fontWeight: 700, fontSize: T.body }}>{produit?.nom || "Produit supprimé"} × {v.quantite}</div>
+                  <div style={{ color: C.textMuted, fontSize: T.small }}>{fmt(v.montant)} · {v.mode}</div>
                 </div>
-                <span onClick={() => supprimerVente(v.id)} style={{ color: C.red, fontSize: "0.72rem", cursor: "pointer" }}>Annuler</span>
+                <LienSupprimer onClick={() => supprimerVente(v.id)} label="Annuler" />
               </div>
             );
           })}
@@ -1400,40 +1725,40 @@ function StockView({ entreprise, produits, recharger }) {
       {!ajoutOuvert && <Btn onClick={() => setAjoutOuvert(true)}>+ Ajouter du stock</Btn>}
       {ajoutOuvert && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, marginTop: 10 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Entrée de stock</div>
-          <select value={produitId} onChange={e => setProduitId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg }}>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Entrée de stock</div>
+          <select value={produitId} onChange={e => setProduitId(e.target.value)} className="gf-input" style={{ width: "100%", padding: 10, marginBottom: 12, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.body }}>
             <option value="">— Choisir un produit —</option>
             {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
           </select>
           <Input type="number" placeholder="Quantité reçue" value={quantite} onChange={e => setQuantite(e.target.value)} />
           <Input placeholder="Motif (ex: Livraison fournisseur)" value={motif} onChange={e => setMotif(e.target.value)} />
-          {erreur && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreur}</div>}
+          {erreur && <div style={{ color: C.red, fontSize: T.small, marginBottom: 10 }}>{erreur}</div>}
           <Btn onClick={ajouterStock}>Enregistrer l'entrée</Btn>
-          <div onClick={() => setAjoutOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: "0.78rem", color: C.textMuted, cursor: "pointer" }}>Annuler</div>
+          <div onClick={() => setAjoutOuvert(false)} style={{ textAlign: "center", marginTop: 10, fontSize: T.small, color: C.textMuted, cursor: "pointer" }}>Annuler</div>
         </div>
       )}
 
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Stock actuel</div>
-        {produits.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.85rem" }}>Aucun produit — ajoute-en depuis l'onglet Ventes.</div>}
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Stock actuel</div>
+        {produits.length === 0 && <div style={{ color: C.textMuted, fontSize: T.body }}>Aucun produit — ajoute-en depuis l'onglet Caisse.</div>}
         {produits.map(p => {
           const faible = Number(p.stock_actuel) <= Number(p.seuil_alerte);
           return (
             <div key={p.id} style={{ background: C.white, border: `1px solid ${faible ? C.red : C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{p.nom}</div>
-                <div style={{ fontWeight: 800, fontSize: "1rem", color: faible ? C.red : C.green }}>{p.stock_actuel}</div>
+                <div style={{ fontWeight: 700, fontSize: T.body }}>{p.nom}</div>
+                <div style={{ fontWeight: 800, fontSize: T.sub, color: faible ? C.red : C.green }}>{p.stock_actuel}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Prix d'achat</label>
+                  <label style={{ color: C.textMuted, fontSize: T.micro }}>Prix d'achat</label>
                   <input type="number" defaultValue={p.prix_achat} onBlur={e => modifierProduit(p.id, "prix_achat", e.target.value)} className="gf-input"
-                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
+                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.small }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ color: C.textMuted, fontSize: "0.68rem" }}>Seuil d'alerte</label>
+                  <label style={{ color: C.textMuted, fontSize: T.micro }}>Seuil d'alerte</label>
                   <input type="number" defaultValue={p.seuil_alerte} onBlur={e => modifierProduit(p.id, "seuil_alerte", e.target.value)} className="gf-input"
-                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: "0.82rem" }} />
+                    style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, fontSize: T.small }} />
                 </div>
               </div>
             </div>
@@ -1462,8 +1787,7 @@ function DepensesView({ entreprise, depenses, recharger }) {
   };
 
   const supprimer = async (id) => {
-    await supabase.from("depenses").delete().eq("id", id);
-    recharger();
+    await supprimerLigne("depenses", id, "Supprimer cette dépense ?", recharger);
   };
 
   const aujourdHui = new Date().toISOString().slice(0, 10);
@@ -1471,37 +1795,98 @@ function DepensesView({ entreprise, depenses, recharger }) {
 
   return (
     <div style={{ maxWidth: 700 }}>
-      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: 14 }}>Dépenses aujourd'hui : <span style={{ color: C.red }}>{fmt(totalJour)}</span></div>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 14 }}>Dépenses aujourd'hui : <span style={{ color: C.red }}>{fmt(totalJour)}</span></div>
 
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.85rem", marginBottom: 10 }}>Enregistrer une dépense</div>
+        <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 10 }}>Enregistrer une dépense</div>
         <Input placeholder="Catégorie (ex: Transport, Loyer, Achat marchandise)" value={categorie} onChange={e => setCategorie(e.target.value)} />
         <Input placeholder="Description (optionnel)" value={description} onChange={e => setDescription(e.target.value)} />
         <Input type="number" placeholder="Montant (FCFA)" value={montant} onChange={e => setMontant(e.target.value)} />
         <Btn onClick={ajouter}>Enregistrer</Btn>
       </div>
 
-      {depenses.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <Btn variant="outline" onClick={() => exporterCSV("depenses", [
-            { label: "Date", cle: "date" }, { label: "Catégorie", cle: "categorie" }, { label: "Description", cle: "description" }, { label: "Montant", cle: "montant" },
-          ], depenses)}>Exporter en CSV</Btn>
-        </div>
-      )}
-
-      {depenses.length === 0 && <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: "0.85rem" }}>Aucune dépense enregistrée.</div>}
+      {depenses.length === 0 && <div style={{ color: C.textMuted, textAlign: "center", padding: 24, fontSize: T.body }}>Aucune dépense enregistrée.</div>}
       {depenses.map(d => (
         <div key={d.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{d.categorie}</div>
-            <div style={{ color: C.textMuted, fontSize: "0.72rem" }}>{d.description ? `${d.description} · ` : ""}{d.date}</div>
+            <div style={{ fontWeight: 700, fontSize: T.body }}>{d.categorie}</div>
+            <div style={{ color: C.textMuted, fontSize: T.small }}>{d.description ? `${d.description} · ` : ""}{d.date}</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontWeight: 700, color: C.red }}>{fmt(d.montant)}</div>
-            <span onClick={() => supprimer(d.id)} style={{ color: C.red, fontSize: "0.7rem", cursor: "pointer" }}>Supprimer</span>
+            <LienSupprimer onClick={() => supprimer(d.id)} />
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ============================================================
+// RAPPORTS — nouvel onglet, centralise exports et stats
+// ============================================================
+function RapportsView({ clients, paiements, creances, ventes, produits, depenses }) {
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const debutMois = debutMoisISO();
+
+  const caMois = ventes.filter(v => v.date >= debutMois).reduce((s, v) => s + Number(v.montant), 0)
+    + paiements.filter(p => p.statut === "Payé" && p.date >= debutMois).reduce((s, p) => s + Number(p.montant), 0);
+  const depensesMois = depenses.filter(d => d.date >= debutMois).reduce((s, d) => s + Number(d.montant), 0);
+  const nbVentesMois = ventes.filter(v => v.date >= debutMois).length;
+
+  const lignesCreances = creances.flatMap(cr => {
+    const client = clients.find(c => c.id === cr.client_id);
+    return (cr.echeances || []).map(e => ({
+      client: client?.nom || "Client supprimé", numero: e.numero, montant: e.montant, date_echeance: e.date_echeance, statut: statutEcheance(e),
+    }));
+  });
+
+  const Ligne = ({ label, valeur }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.border}`, fontSize: T.body }}>
+      <span style={{ color: C.textMuted }}>{label}</span>
+      <span style={{ fontWeight: 700 }}>{valeur}</span>
+    </div>
+  );
+
+  const LigneExport = ({ titre, desc, onClick, disabled }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: T.body, color: C.text }}>{titre}</div>
+        <div style={{ color: C.textMuted, fontSize: T.small }}>{desc}</div>
+      </div>
+      <button onClick={onClick} disabled={disabled} className="gf-btn"
+        style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 12px", color: disabled ? C.textMuted : C.teal, fontWeight: 700, fontSize: T.small, cursor: disabled ? "not-allowed" : "pointer" }}>
+        <Icon name="export" size={15} /> CSV
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.h3, marginBottom: 12 }}>Résumé du mois en cours</div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "4px 16px", marginBottom: 20 }}>
+        <Ligne label="Chiffre d'affaires" valeur={fmt(caMois)} />
+        <Ligne label="Dépenses" valeur={fmt(depensesMois)} />
+        <Ligne label="Nombre de ventes" valeur={nbVentesMois} />
+      </div>
+
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.h3, marginBottom: 12 }}>Exports</div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "4px 16px" }}>
+        <LigneExport titre="Ventes" desc={`${ventes.length} enregistrement(s)`} disabled={ventes.length === 0}
+          onClick={() => exporterCSV("ventes", [{ label: "Date", cle: "date" }, { label: "Montant", cle: "montant" }, { label: "Mode", cle: "mode" }, { label: "Quantité", cle: "quantite" }], ventes)} />
+        <LigneExport titre="Clients" desc={`${clients.length} enregistrement(s)`} disabled={clients.length === 0}
+          onClick={() => exporterCSV("clients", [{ label: "Nom", cle: "nom" }, { label: "Téléphone", cle: "telephone" }, { label: "Statut", cle: "statut" }], clients)} />
+        <LigneExport titre="Paiements" desc={`${paiements.length} enregistrement(s)`} disabled={paiements.length === 0}
+          onClick={() => exporterCSV("paiements", [{ label: "Date", cle: "date" }, { label: "Montant", cle: "montant" }, { label: "Mode", cle: "mode" }, { label: "Statut", cle: "statut" }], paiements)} />
+        <LigneExport titre="Créances / échéances" desc={`${lignesCreances.length} échéance(s)`} disabled={lignesCreances.length === 0}
+          onClick={() => exporterCSV("creances", [{ label: "Client", cle: "client" }, { label: "N° échéance", cle: "numero" }, { label: "Montant", cle: "montant" }, { label: "Date échéance", cle: "date_echeance" }, { label: "Statut", cle: "statut" }], lignesCreances)} />
+        <LigneExport titre="Dépenses" desc={`${depenses.length} enregistrement(s)`} disabled={depenses.length === 0}
+          onClick={() => exporterCSV("depenses", [{ label: "Date", cle: "date" }, { label: "Catégorie", cle: "categorie" }, { label: "Description", cle: "description" }, { label: "Montant", cle: "montant" }], depenses)} />
+        <div style={{ padding: "12px 0" }}>
+          <LigneExport titre="Stock" desc={`${produits.length} produit(s)`} disabled={produits.length === 0}
+            onClick={() => exporterCSV("stock", [{ label: "Produit", cle: "nom" }, { label: "Stock actuel", cle: "stock_actuel" }, { label: "Prix", cle: "prix" }, { label: "Prix d'achat", cle: "prix_achat" }], produits)} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1601,7 +1986,7 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
     setErreurMdp(""); setSuccesMdp(false);
     if (!ancienMdp || !nouveauMdp || !confirmMdp) { setErreurMdp("Remplis tous les champs."); return; }
     if (nouveauMdp !== confirmMdp) { setErreurMdp("Les nouveaux mots de passe ne correspondent pas."); return; }
-    if (nouveauMdp.length < 6) { setErreurMdp("Le nouveau mot de passe doit faire au moins 6 caractères."); return; }
+    if (!MDP_REGEX.test(nouveauMdp)) { setErreurMdp(MDP_AIDE); return; }
     setChargementMdp(true);
 
     const { error: erreurVerif } = await supabase.auth.signInWithPassword({ email: entreprise.email, password: ancienMdp });
@@ -1635,7 +2020,7 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
 
   const Carte = ({ titre, children, onClick }) => (
     <div onClick={onClick} className={onClick ? "gf-card-link" : ""} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 12, cursor: onClick ? "pointer" : "default" }}>
-      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", marginBottom: children ? 8 : 0 }}>{titre}</div>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: children ? 8 : 0 }}>{titre}</div>
       {children}
     </div>
   );
@@ -1644,8 +2029,8 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
     const texte = sousMenu === "confidentialite" ? TEXTE_CONFIDENTIALITE : TEXTE_CONDITIONS;
     return (
       <div style={{ maxWidth: 600 }}>
-        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, whiteSpace: "pre-line", fontSize: "0.85rem", lineHeight: 1.6, color: C.text }}>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, whiteSpace: "pre-line", fontSize: T.body, lineHeight: 1.6, color: C.text }}>
           {texte}
         </div>
       </div>
@@ -1655,18 +2040,18 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
   if (sousMenu === "profil") {
     return (
       <div style={{ maxWidth: 500 }}>
-        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "1rem", marginBottom: 14 }}>Modifier mon profil</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.h3, marginBottom: 14 }}>Modifier mon profil</div>
           <Input label="Nom de l'entreprise" value={nom} onChange={e => setNom(e.target.value)} />
           <Input label="Ville" value={ville} onChange={e => setVille(e.target.value)} />
           <Input label="Téléphone" value={telephone} onChange={e => setTelephone(e.target.value)} />
           <Input label="Email" type="email" value={nouvelEmail} onChange={e => setNouvelEmail(e.target.value)} />
-          <div style={{ color: C.textMuted, fontSize: "0.7rem", marginBottom: 12 }}>
+          <div style={{ color: C.textMuted, fontSize: T.small, marginBottom: 12 }}>
             Changer l'email demandera une confirmation par lien envoyé à la nouvelle adresse.
           </div>
-          {erreurProfil && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreurProfil}</div>}
-          {succesProfil && <div style={{ color: C.green, fontSize: "0.78rem", marginBottom: 10 }}>{succesProfil}</div>}
+          {erreurProfil && <div style={{ color: C.red, fontSize: T.small, marginBottom: 10 }}>{erreurProfil}</div>}
+          {succesProfil && <div style={{ color: C.green, fontSize: T.small, marginBottom: 10 }}>{succesProfil}</div>}
           <Btn onClick={enregistrerProfil} disabled={chargementProfil}>{chargementProfil ? "Enregistrement..." : "Enregistrer"}</Btn>
         </div>
       </div>
@@ -1676,14 +2061,15 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
   if (sousMenu === "motdepasse") {
     return (
       <div style={{ maxWidth: 500 }}>
-        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
+        <div onClick={() => setSousMenu(null)} style={{ color: C.teal, fontWeight: 700, fontSize: T.small, cursor: "pointer", marginBottom: 14 }}>← Retour aux paramètres</div>
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "1rem", marginBottom: 14 }}>Modifier mon mot de passe</div>
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: T.h3, marginBottom: 14 }}>Modifier mon mot de passe</div>
           <Input label="Ancien mot de passe" type="password" value={ancienMdp} onChange={e => setAncienMdp(e.target.value)} />
           <Input label="Nouveau mot de passe" type="password" value={nouveauMdp} onChange={e => setNouveauMdp(e.target.value)} />
           <Input label="Confirmer le nouveau mot de passe" type="password" value={confirmMdp} onChange={e => setConfirmMdp(e.target.value)} />
-          {erreurMdp && <div style={{ color: C.red, fontSize: "0.78rem", marginBottom: 10 }}>{erreurMdp}</div>}
-          {succesMdp && <div style={{ color: C.green, fontSize: "0.78rem", marginBottom: 10 }}>Votre mot de passe a été modifié avec succès.</div>}
+          <div style={{ color: C.textMuted, fontSize: T.small, marginBottom: 12 }}>{MDP_AIDE}</div>
+          {erreurMdp && <div style={{ color: C.red, fontSize: T.small, marginBottom: 10 }}>{erreurMdp}</div>}
+          {succesMdp && <div style={{ color: C.green, fontSize: T.small, marginBottom: 10 }}>Votre mot de passe a été modifié avec succès.</div>}
           <Btn onClick={modifierMotDePasse} disabled={chargementMdp}>{chargementMdp ? "Modification..." : "Modifier le mot de passe"}</Btn>
         </div>
       </div>
@@ -1700,22 +2086,22 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
       `}</style>
       <div className="gf-parametres">
         <Carte titre="Profil" onClick={() => setSousMenu("profil")}>
-          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 8 }}>
+          <div style={{ fontSize: T.body, color: C.textMuted, marginBottom: 8 }}>
             {entreprise.nom} · {entreprise.ville}<br />{entreprise.email} · {entreprise.telephone}
           </div>
           <Badge text={profilComplet ? "Profil complet" : "Profil à compléter"} color={profilComplet ? "vert" : "ambre"} />
         </Carte>
 
         <Carte titre="Confidentialité" onClick={() => setSousMenu("confidentialite")}>
-          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Comment vos données sont protégées et utilisées</div>
+          <div style={{ fontSize: T.body, color: C.textMuted }}>Comment vos données sont protégées et utilisées</div>
         </Carte>
 
         <Carte titre="Conditions d'utilisation" onClick={() => setSousMenu("conditions")}>
-          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Les règles d'usage de PolyFinance GF</div>
+          <div style={{ fontSize: T.body, color: C.textMuted }}>Les règles d'usage de PolyFinance GF</div>
         </Carte>
 
         <Carte titre="Service client">
-          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
+          <div style={{ fontSize: T.body, color: C.textMuted, marginBottom: 10 }}>
             Besoin d'aide ? Notre service client est disponible pour vous accompagner.<br />amazouemmanuel274@gmail.com
           </div>
           <a href="mailto:amazouemmanuel274@gmail.com" style={{ textDecoration: "none" }}>
@@ -1728,22 +2114,22 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
         </Carte>
 
         <Carte titre="Modifier mon mot de passe" onClick={() => setSousMenu("motdepasse")}>
-          <div style={{ fontSize: "0.8rem", color: C.textMuted }}>Sécurisez votre compte</div>
+          <div style={{ fontSize: T.body, color: C.textMuted }}>Sécurisez votre compte</div>
         </Carte>
 
         <Carte titre="Inviter quelqu'un">
-          <div style={{ fontSize: "0.8rem", color: C.textMuted, marginBottom: 10 }}>
+          <div style={{ fontSize: T.body, color: C.textMuted, marginBottom: 10 }}>
             Vous connaissez un entrepreneur, un restaurateur ou un commerçant qui pourrait utiliser PolyFinance GF ? Invitez-le à découvrir la plateforme.
           </div>
           <Btn onClick={partager}>Inviter quelqu'un</Btn>
         </Carte>
       </div>
 
-      <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.9rem", margin: "20px 0 12px" }}>Guide — Astuces pour mieux utiliser PolyFinance GF</div>
+      <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, margin: "20px 0 12px" }}>Guide — Astuces pour mieux utiliser PolyFinance GF</div>
       <div className="gf-parametres">
         {ASTUCES.map(([titre, texte], i) => (
           <Carte key={i} titre={titre}>
-            <div style={{ fontSize: "0.8rem", color: C.textMuted }}>{texte}</div>
+            <div style={{ fontSize: T.body, color: C.textMuted }}>{texte}</div>
           </Carte>
         ))}
       </div>
@@ -1752,18 +2138,22 @@ function ParametresView({ entreprise, onProfilMisAJour }) {
 }
 
 // ============================================================
-// ESPACE ENTREPRISE — menu latéral sur ordinateur, onglets sur mobile
+// ESPACE ENTREPRISE — sidebar desktop, barre fixe mobile
 // ============================================================
 const ONGLETS = [
-  ["dashboard", "Tableau de bord"],
-  ["clients", "Clients"],
-  ["paiements", "Paiements"],
-  ["creances", "Créances"],
-  ["ventes", "Ventes"],
-  ["stock", "Stock"],
-  ["depenses", "Dépenses"],
-  ["parametres", "Paramètres"],
+  ["dashboard", "Tableau de bord", "dashboard"],
+  ["clients", "Clients", "clients"],
+  ["paiements", "Paiements", "paiements"],
+  ["creances", "Créances", "creances"],
+  ["ventes", "Caisse", "caisse"],
+  ["stock", "Stock", "stock"],
+  ["depenses", "Dépenses", "depenses"],
+  ["rapports", "Rapports", "rapports"],
+  ["parametres", "Paramètres", "parametres"],
 ];
+
+// Sous-ensemble prioritaire pour la barre mobile fixe (5 max, le reste dans Paramètres/plus)
+const ONGLETS_MOBILE_PRINCIPAUX = ["dashboard", "ventes", "clients", "stock", "parametres"];
 
 function EspaceEntreprise({ entreprise, onLogout }) {
   const [tab, setTab] = useState("dashboard");
@@ -1796,27 +2186,34 @@ function EspaceEntreprise({ entreprise, onLogout }) {
 
   const contenu = (
     <>
-      {tab === "dashboard" && <TableauDeBord clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
+      {tab === "dashboard" && <TableauDeBord entreprise={entrepriseLocale} clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} allerA={setTab} recharger={recharger} />}
       {tab === "clients" && <ClientsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} creances={creances} recharger={recharger} />}
       {tab === "paiements" && <PaiementsView entreprise={entrepriseLocale} clients={clients} paiements={paiements} recharger={recharger} />}
       {tab === "creances" && <CreancesView entreprise={entrepriseLocale} clients={clients} creances={creances} recharger={recharger} />}
       {tab === "ventes" && <VentesView entreprise={entrepriseLocale} produits={produits} ventes={ventes} recharger={recharger} />}
       {tab === "stock" && <StockView entreprise={entrepriseLocale} produits={produits} recharger={recharger} />}
       {tab === "depenses" && <DepensesView entreprise={entrepriseLocale} depenses={depenses} recharger={recharger} />}
+      {tab === "rapports" && <RapportsView clients={clients} paiements={paiements} creances={creances} ventes={ventes} produits={produits} depenses={depenses} />}
       {tab === "parametres" && <ParametresView entreprise={entrepriseLocale} onProfilMisAJour={recharger} />}
     </>
   );
+
+  const ongletsMobilePrincipaux = ONGLETS.filter(([id]) => ONGLETS_MOBILE_PRINCIPAUX.includes(id));
+  const ongletsMobilePlus = ONGLETS.filter(([id]) => !ONGLETS_MOBILE_PRINCIPAUX.includes(id) && id !== "parametres");
+  const [plusOuvert, setPlusOuvert] = useState(false);
 
   return (
     <div>
       <style>{`
         .gf-layout { display: block; max-width: 1300px; margin: 0 auto; }
         .gf-sidebar { display: none; }
-        .gf-tabs-mobile { display: flex; background: ${C.white}; border-bottom: 1px solid ${C.border}; overflow-x: auto; }
+        .gf-navbar-mobile { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: ${C.white}; border-top: 1px solid ${C.border}; padding: 6px 4px calc(6px + env(safe-area-inset-bottom,0px)); z-index: 40; }
+        .gf-content-mobile-pad { padding-bottom: 72px; }
         @media (min-width: 900px) {
           .gf-layout { display: flex; align-items: flex-start; }
           .gf-sidebar { display: flex; flex-direction: column; width: 220px; flex-shrink: 0; min-height: calc(100vh - 20px); background: ${C.navyDark}; }
-          .gf-tabs-mobile { display: none; }
+          .gf-navbar-mobile { display: none; }
+          .gf-content-mobile-pad { padding-bottom: 0; }
           .gf-main { flex: 1; min-width: 0; }
         }
       `}</style>
@@ -1824,44 +2221,68 @@ function EspaceEntreprise({ entreprise, onLogout }) {
       <div className="gf-layout">
         <div className="gf-sidebar">
           <div style={{ padding: "22px 18px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <div style={{ color: C.white, fontWeight: 800, fontSize: "1rem", letterSpacing: 0.3 }}>PolyFinance <span style={{ color: C.tealLight }}>GF</span></div>
-            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem", marginTop: 6, lineHeight: 1.4 }}>{entrepriseLocale.nom}</div>
+            <div style={{ color: C.white, fontWeight: 800, fontSize: T.sub, letterSpacing: 0.3 }}>PolyFinance <span style={{ color: C.tealLight }}>GF</span></div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: T.small, marginTop: 6, lineHeight: 1.4 }}>{entrepriseLocale.nom}</div>
             <div style={{ marginTop: 6 }}><Badge text={entrepriseLocale.statut} color={entrepriseLocale.statut === "Premium" ? "vert" : "ambre"} /></div>
           </div>
           <nav style={{ flex: 1, padding: "12px 10px" }}>
-            {ONGLETS.map(([id, label]) => (
+            {ONGLETS.map(([id, label, icone]) => (
               <div key={id} onClick={() => setTab(id)}
-                style={{ padding: "10px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", fontSize: "0.85rem", fontWeight: tab === id ? 700 : 500, color: tab === id ? C.white : "rgba(255,255,255,0.6)", background: tab === id ? C.teal : "transparent" }}>
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", fontSize: T.body, fontWeight: tab === id ? 700 : 500, color: tab === id ? C.white : "rgba(255,255,255,0.6)", background: tab === id ? C.teal : "transparent" }}>
+                <Icon name={icone} size={17} />
                 {label}
               </div>
             ))}
           </nav>
           <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.78rem", cursor: "pointer" }}>Déconnexion</span>
+            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.55)", fontSize: T.small, cursor: "pointer" }}>Déconnexion</span>
           </div>
         </div>
 
         <div className="gf-main">
           <div style={{ background: `linear-gradient(135deg,${C.navyDark},${C.navy})`, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ color: C.white, fontWeight: 700, fontSize: "0.95rem" }}>{entrepriseLocale.nom}</div>
-              <div style={{ color: C.tealLight, fontSize: "0.68rem" }}>{entrepriseLocale.statut} {entrepriseLocale.date_expiration ? `· jusqu'au ${entrepriseLocale.date_expiration}` : ""}</div>
+              <div style={{ color: C.white, fontWeight: 700, fontSize: T.sub }}>{entrepriseLocale.nom}</div>
+              <div style={{ color: C.tealLight, fontSize: T.micro }}>{entrepriseLocale.statut} {entrepriseLocale.date_expiration ? `· jusqu'au ${entrepriseLocale.date_expiration}` : ""}</div>
             </div>
-            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.75rem", cursor: "pointer" }}>Déconnexion</span>
+            <span onClick={onLogout} style={{ color: "rgba(255,255,255,0.7)", fontSize: T.small, cursor: "pointer" }}>Déconnexion</span>
           </div>
-          <div className="gf-tabs-mobile">
-            {ONGLETS.map(([id, label]) => (
-              <div key={id} onClick={() => setTab(id)}
-                style={{ flex: "0 0 auto", textAlign: "center", padding: "10px 14px", fontSize: "0.72rem", fontWeight: 700, color: tab === id ? C.teal : C.textMuted, borderBottom: tab === id ? `2px solid ${C.teal}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap" }}>
-                {label}
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: 16 }}>
+
+          <div className="gf-content-mobile-pad" style={{ padding: 16 }}>
             {contenu}
           </div>
         </div>
       </div>
+
+      <div className="gf-navbar-mobile">
+        {ongletsMobilePrincipaux.map(([id, label, icone]) => (
+          <div key={id} onClick={() => { setTab(id); setPlusOuvert(false); }}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 2px", color: tab === id ? C.teal : C.textMuted, cursor: "pointer" }}>
+            <Icon name={icone} size={20} />
+            <span style={{ fontSize: "10px", fontWeight: tab === id ? 700 : 500 }}>{label}</span>
+          </div>
+        ))}
+        <div onClick={() => setPlusOuvert(o => !o)}
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 2px", color: plusOuvert ? C.teal : C.textMuted, cursor: "pointer" }}>
+          <Icon name="rapports" size={20} />
+          <span style={{ fontSize: "10px", fontWeight: 500 }}>Plus</span>
+        </div>
+      </div>
+
+      {plusOuvert && (
+        <div onClick={() => setPlusOuvert(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,46,66,0.4)", zIndex: 45, display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, width: "100%", borderRadius: "16px 16px 0 0", padding: "20px 16px calc(20px + env(safe-area-inset-bottom,0px))" }}>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: T.sub, marginBottom: 12 }}>Plus d'options</div>
+            {ongletsMobilePlus.map(([id, label, icone]) => (
+              <div key={id} onClick={() => { setTab(id); setPlusOuvert(false); }}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px", borderBottom: `1px solid ${C.border}`, color: C.text, cursor: "pointer" }}>
+                <Icon name={icone} size={18} />
+                <span style={{ fontSize: T.body, fontWeight: 600 }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
